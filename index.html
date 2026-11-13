@@ -401,7 +401,11 @@
       <div class="space-y-3">
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">班別 | Class</label>
-          <div class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm">中四中文經濟 | Form 4 Economics</div>
+          <select id="input-student-class" required class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:border-blue-500">
+            <option value="">請選擇班別 | Select your class</option>
+            <option value="f4-chinese-economics">中四中文經濟</option>
+            <option value="form4-economics">Form 4 Economics</option>
+          </select>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">自選暱稱 | Nickname (最多 20 字)</label>
@@ -1190,8 +1194,14 @@
     // =========================================================================
     // 2. APPLICATION STATE & EMPTY DEFAULT LEADERBOARD (無任何預設假名)
     // =========================================================================
-    const CLASS_ID = "form4-economics";
-    const CLASS_LABEL = "中四中文經濟 | Form 4 Economics";
+    const CLASS_OPTIONS = [
+      { id: "f4-chinese-economics", label: "中四中文經濟" },
+      { id: "form4-economics", label: "Form 4 Economics" }
+    ];
+    function getClassLabel(classId) {
+      const item = CLASS_OPTIONS.find(option => option.id === classId);
+      return item ? item.label : "未選擇班別";
+    }
     const TEACHER_UID = "yNTHslsR7QYILL72UrewYSMdugf2";
     const firebaseConfig = {
       apiKey: "AIzaSyAbgEDCTgmDfpgfiZ_KIg1m0umkxBAmXrs",
@@ -1207,7 +1217,7 @@
 
     let state = {
       studentName: "經濟學習者",
-      classId: CLASS_ID,
+      classId: "",
       activeTab: "quest",
       currentLevel: 0,
       currentQuestionIdxInLevel: 0,
@@ -1247,7 +1257,7 @@
     function subscribeToLeaderboard() {
       if (leaderboardUnsubscribe) leaderboardUnsubscribe();
       leaderboardUnsubscribe = db.collection("leaderboard")
-        .where("classId", "==", CLASS_ID)
+        .where("classId", "==", state.classId)
         .onSnapshot(snapshot => {
           state.leaderboardEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), name: doc.data().nickname }));
           if (state.activeTab === "leaderboard") renderLeaderboards();
@@ -1263,7 +1273,7 @@
       const nickname = (state.studentName || "經濟學習者").trim().slice(0, 20);
       const record = {
         uid: firebaseUser.uid,
-        classId: CLASS_ID,
+        classId: state.classId,
         nickname,
         totalScore: state.levelScores.reduce((a, b) => a + b, 0),
         levelScores: [...state.levelScores],
@@ -1869,7 +1879,7 @@
                           </span>
                           <div>
                             <span class="text-sm font-bold text-slate-900">${stu.name}</span>
-                            <span class="text-xs text-slate-500 ml-1">(${CLASS_LABEL})</span>
+                            <span class="text-xs text-slate-500 ml-1">(${getClassLabel(stu.classId)})</span>
                             ${isCurrentUser ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold">你 | You</span>` : ""}
                           </div>
                         </div>
@@ -1914,7 +1924,7 @@
                 <span class="text-base font-black w-8 text-center">${medal}</span>
                 <div>
                   <span class="font-extrabold text-sm text-slate-900">${stu.name}</span>
-                  <span class="text-xs text-slate-500 ml-1">(${CLASS_LABEL})</span>
+                  <span class="text-xs text-slate-500 ml-1">(${getClassLabel(stu.classId)})</span>
                   ${isCurrentUser ? `<span class="ml-1.5 px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold">你 | You</span>` : ""}
                 </div>
               </div>
@@ -1990,7 +2000,7 @@
         showToast("只有教師可以清空排行榜。| Teacher access required."); return;
       }
       try {
-        const snapshot = await db.collection("leaderboard").where("classId", "==", CLASS_ID).get();
+        const snapshot = await db.collection("leaderboard").where("classId", "==", state.classId).get();
         const docs = snapshot.docs;
         for (let i = 0; i < docs.length; i += 400) {
           const batch = db.batch();
@@ -2316,6 +2326,7 @@
     // =========================================================================
     function openProfileModal() {
       document.getElementById("input-student-name").value = state.studentName;
+      document.getElementById("input-student-class").value = state.classId || "";
       document.getElementById("profile-modal").classList.remove("hidden");
     }
 
@@ -2324,9 +2335,17 @@
     }
 
     function saveStudentProfile() {
+      const selectedClass = document.getElementById("input-student-class").value;
+      if (!CLASS_OPTIONS.some(option => option.id === selectedClass)) {
+        showToast("請先選擇班別。| Please select your class first.");
+        return;
+      }
       const sName = document.getElementById("input-student-name").value.trim() || "經濟學習者";
+      const classChanged = state.classId !== selectedClass;
       state.studentName = sName.slice(0, 20);
-      document.getElementById("display-student-name").textContent = `${state.studentName} · ${CLASS_LABEL}`;
+      state.classId = selectedClass;
+      document.getElementById("display-student-name").textContent = `${state.studentName} · ${getClassLabel(state.classId)}`;
+      if (classChanged && firebaseUser && firebaseUser.isAnonymous) subscribeToLeaderboard();
       closeProfileModal();
       if (Object.keys(state.answeredQuestions).length > 0) {
         syncCurrentStudentToLeaderboard();
@@ -2347,7 +2366,7 @@
     // =========================================================================
     window.onload = function () {
       initializeFirebase();
-      document.getElementById("display-student-name").textContent = `${state.studentName} · ${CLASS_LABEL}`;
+      document.getElementById("display-student-name").textContent = `${state.studentName} · ${getClassLabel(state.classId)}`;
       updateGlobalScoreHeader();
       renderLevelCards();
       renderCurrentQuestion();
