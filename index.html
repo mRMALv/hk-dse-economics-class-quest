@@ -1256,6 +1256,11 @@
 
     function subscribeToLeaderboard() {
       if (leaderboardUnsubscribe) leaderboardUnsubscribe();
+      state.leaderboardEntries = [];
+      if (!state.classId) {
+        if (state.activeTab === "leaderboard") renderLeaderboards();
+        return;
+      }
       leaderboardUnsubscribe = db.collection("leaderboard")
         .where("classId", "==", state.classId)
         .onSnapshot(snapshot => {
@@ -1280,7 +1285,9 @@
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       try {
-        await db.collection("leaderboard").doc(firebaseUser.uid).set(record);
+        // One browser account can participate in either class without overwriting its other class record.
+        const recordId = `${state.classId}_${firebaseUser.uid}`;
+        await db.collection("leaderboard").doc(recordId).set(record);
       } catch (err) {
         console.error("Unable to save score", err);
         showToast("成績未能同步，請稍後再試。| Score could not be synced.");
