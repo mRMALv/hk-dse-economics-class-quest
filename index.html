@@ -1,0 +1,2359 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HK DSE 經濟科 第六課：廠商的擁有權 | Ownership of Firms</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans TC"', '"Inter"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef6ff',
+              100: '#d9eaff',
+              200: '#bcdbff',
+              500: '#2b7fff',
+              600: '#155dfc',
+              700: '#1447e6',
+              900: '#1c398e',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Noto Sans TC', 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .draggable-chip {
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    }
+    .draggable-chip:active {
+      cursor: grabbing;
+      transform: scale(0.98);
+    }
+    .drop-zone {
+      transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+    .drop-zone.drag-over {
+      background-color: #eff6ff;
+      border-color: #2563eb;
+      transform: scale(1.01);
+    }
+    .confetti-piece {
+      position: fixed;
+      width: 10px;
+      height: 16px;
+      top: -20px;
+      z-index: 100;
+      pointer-events: none;
+      animation: fall linear forwards;
+    }
+    @keyframes fall {
+      to {
+        transform: translateY(105vh) rotate(720deg);
+      }
+    }
+    /* Custom scrollbar for clean look */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Navigation & Student Status Bar -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand / Course Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-lg shadow-sm">
+          DSE
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+            第六課：廠商的擁有權 <span class="text-slate-500 font-semibold">| Ownership of Firms</span>
+          </h1>
+          <p class="text-xs text-slate-500">香港中學文憑考試 經濟科 · 互動闖關與知識腦圖 | HKDSE Economics · Interactive Quest & Mind Map</p>
+        </div>
+      </div>
+
+      <!-- Mode Switcher Tabs -->
+      <nav class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <button id="tab-quest" onclick="switchTab('quest')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all bg-white text-blue-700 shadow-sm flex items-center gap-1.5">
+          <span>🎯</span> <span>闖關挑戰 | Quest</span>
+        </button>
+        <button id="tab-mindmap" onclick="switchTab('mindmap')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+          <span>🧠</span> <span>知識腦圖 | Mind Map</span>
+        </button>
+        <button id="tab-leaderboard" onclick="switchTab('leaderboard')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+          <span>🏆</span> <span>分關排行榜 | Top 3</span>
+        </button>
+      </nav>
+
+      <!-- Live Score, Student Name & Timer Status -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="openProfileModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
+          <span>👤</span>
+          <span id="display-student-name">陳大文 Chan Tai Man (4A-01)</span>
+        </button>
+
+        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs sm:text-sm font-extrabold">
+          <span>⭐</span>
+          <span>總分 Total: <span id="header-total-score">0</span> / 400</span>
+        </div>
+
+        <!-- Timer Pill (Automatically Pauses on Mind Map & Leaderboard) -->
+        <div id="timer-badge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs sm:text-sm font-bold">
+          <span id="timer-icon">⏱️</span>
+          <span id="timer-text">15:00</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ========================================================= -->
+    <!-- VIEW 1: QUEST CHALLENGE (闖關挑戰)                         -->
+    <!-- ========================================================= -->
+    <section id="view-quest" class="space-y-6">
+      <!-- Level Selector Cards (Shows individual level progress & scores) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="level-cards-container">
+        <!-- Rendered dynamically by JS -->
+      </div>
+
+      <!-- Core Legal Definitions Banner for Level 1 & Level 2 -->
+      <div id="core-legal-banner" class="hidden bg-gradient-to-r from-slate-50 to-blue-50/70 rounded-2xl border border-blue-200 p-4 sm:p-5 shadow-xs space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h3 class="text-xs sm:text-sm font-black text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+            <span>⚖️</span> <span>核心法律定義速覽 | Core Legal Definitions</span>
+          </h3>
+          <span class="text-[11px] font-semibold text-slate-500">掌握以下三項核心定義以區分私營企業 | Master these 3 core definitions</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1">
+            <div class="font-extrabold text-indigo-800">1. 獨立法人 | Separate Legal Entity</div>
+            <p class="text-slate-700 leading-relaxed">企業在法律上是一個獨立的個體，可以企業自身的名義擁有財產、簽訂合同及參與訴訟（包括起訴別人和被人起訴）。（註：獨資和合夥<strong>並不是法人</strong>，東主須以個人名義行事。）</p>
+            <p class="text-slate-500 leading-relaxed">An entity with an independent legal identity that can own property, sign contracts, and sue or be sued in its own name. (Note: Sole proprietorships and partnerships are <strong>not</strong> separate legal entities.)</p>
+          </div>
+          <div class="bg-white p-3.5 rounded-xl border border-rose-200 space-y-1">
+            <div class="font-extrabold text-rose-800">2. 無限債務責任 | Unlimited Liability</div>
+            <p class="text-slate-700 leading-relaxed">東主的債務責任不限於其投資在廠商的金額。東主須對廠商的債務負上全部責任，可能要動用個人資產來償還廠商的債務。</p>
+            <p class="text-slate-500 leading-relaxed">Owners' liability for the firm's debts is not limited to the amount they have invested in the firm; they bear full responsibility and may have to use personal assets to repay the firm's debts.</p>
+          </div>
+          <div class="bg-white p-3.5 rounded-xl border border-emerald-200 space-y-1">
+            <div class="font-extrabold text-emerald-800">3. 有限債務責任 | Limited Liability</div>
+            <p class="text-slate-700 leading-relaxed">東主（股東）的債務責任僅限於其投資在廠商的金額。由於有限公司是獨立法人，由公司自行承擔所有債務責任，股東毋須動用個人資產來償還有限公司的債務。</p>
+            <p class="text-slate-500 leading-relaxed">Owners' (shareholders') liability for the firm's debts is limited to the amount they have invested in the firm; as a separate legal entity, the company bears its own debts and shareholders do not need to use personal assets.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Question Card -->
+      <div id="quest-workspace" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <!-- Question Header -->
+        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2 text-xs font-semibold text-blue-300 uppercase tracking-wider">
+              <span id="q-level-badge">第一關 | Level 1</span>
+              <span>•</span>
+              <span id="q-type-badge">拖拽分類題 | Drag & Drop</span>
+              <span id="q-ref-badge" class="hidden px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 normal-case font-medium"></span>
+            </div>
+            <h2 id="q-title" class="text-base sm:text-lg font-bold mt-1">題目標題載入中... | Loading Question...</h2>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-amber-300 border border-white/15">
+              分值 Points：<span id="q-points">20</span>
+            </span>
+            <span class="px-3 py-1 rounded-full bg-blue-500/20 text-xs font-bold text-blue-200 border border-blue-400/30">
+              進度 Progress：<span id="q-progress">1 / 5</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Question Body -->
+        <div class="p-5 sm:p-6 space-y-5">
+          <!-- Scenario / Prompt Box -->
+          <div id="q-prompt" class="text-sm sm:text-base text-slate-800 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+          </div>
+
+          <!-- Interactive Area (Either MCQ Options or Drag & Drop Buckets) -->
+          <div id="q-interactive-area"></div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+            <div class="flex items-center gap-2">
+              <button id="btn-reset-q" onclick="resetCurrentQuestion()" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm font-bold transition">
+                🔄 重設本題 | Reset
+              </button>
+              <button onclick="switchTab('mindmap')" class="px-4 py-2.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-xs sm:text-sm font-bold transition">
+                🧠 查閱知識腦圖（自動暫停計時）| Mind Map (Timer Paused)
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button id="btn-submit-q" onclick="submitCurrentQuestion()" class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-extrabold shadow-sm transition">
+                ✅ 提交答案 | Submit Answer
+              </button>
+              <button id="btn-next-q" onclick="nextQuestion()" class="hidden px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-extrabold shadow-sm transition">
+                下一題 | Next ➡️
+              </button>
+            </div>
+          </div>
+
+          <!-- Detailed Explanation Box (Shown after submission) -->
+          <div id="q-explanation-box" class="hidden rounded-2xl border-2 p-5 space-y-3 transition-all">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span id="exp-status-icon" class="text-2xl">📘</span>
+                <div>
+                  <h3 id="exp-status-title" class="font-extrabold text-base sm:text-lg"></h3>
+                  <p id="exp-score-earned" class="text-xs font-bold"></p>
+                </div>
+              </div>
+              <span class="px-3 py-1 rounded-lg bg-white/80 text-xs font-bold text-slate-700 border border-slate-200">
+                📘 答案與詳細解析 | Answer & Detailed Explanation
+              </span>
+            </div>
+            <div id="exp-content" class="text-sm text-slate-800 leading-relaxed space-y-3 bg-white/90 p-4 rounded-xl border border-slate-200/80">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- VIEW 2: KNOWLEDGE MIND MAP (知識腦圖 - 不計時)              -->
+    <!-- ========================================================= -->
+    <section id="view-mindmap" class="hidden space-y-6">
+      <!-- Non-timed Banner -->
+      <div class="bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-xs font-bold">
+            <span>⏸️</span> <span>探索模式 · 知識腦圖版面不計時 | Exploration Mode · Timer Paused</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-black">第六課：廠商的擁有權 — 中英對照知識腦圖 | Bilingual Knowledge Mind Map</h2>
+          <p class="text-xs sm:text-sm text-blue-100">點擊下方主題切換核心法律定義、企業類型對比表及實例分析。| Click below to explore legal definitions, comparison tables & cases.</p>
+        </div>
+        <button onclick="switchTab('quest')" class="px-5 py-2.5 rounded-xl bg-white text-blue-700 hover:bg-blue-50 font-extrabold text-sm shadow-sm transition">
+          🎯 返回闖關挑戰（恢復計時）| Resume Quest
+        </button>
+      </div>
+
+      <!-- Mind Map Branch Selector -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <button onclick="selectMindMapBranch('overview')" id="mm-btn-overview" class="mm-branch-btn p-4 rounded-2xl border-2 border-blue-600 bg-blue-50 text-left transition">
+          <div class="text-xs font-bold text-blue-600">總覽架構 | Overview</div>
+          <div class="font-extrabold text-slate-900 mt-1">廠商分類與核心法律定義 | Classification & Legal Definitions</div>
+          <div class="text-xs text-slate-500 mt-1">獨立法人 · 無限 vs 有限債務責任 | Separate Legal Entity & Liability</div>
+        </button>
+        <button onclick="selectMindMapBranch('private')" id="mm-btn-private" class="mm-branch-btn p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-300 text-left transition">
+          <div class="text-xs font-bold text-indigo-600">6.1 私有制 | Private Ownership</div>
+          <div class="font-extrabold text-slate-900 mt-1">獨資、合夥與有限公司對比 | Sole Prop., Partnership & Ltd Co.</div>
+          <div class="text-xs text-slate-500 mt-1">私人 vs 公眾有限公司 · 私有化案例 | Private vs Public Ltd & Privatization</div>
+        </button>
+        <button onclick="selectMindMapBranch('shares_bonds')" id="mm-btn-shares_bonds" class="mm-branch-btn p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-300 text-left transition">
+          <div class="text-xs font-bold text-emerald-600">6.2 股票和債券 | Shares & Bonds</div>
+          <div class="font-extrabold text-slate-900 mt-1">公司發行 vs 小投資者購買 | Issuing vs Buying Shares & Bonds</div>
+          <div class="text-xs text-slate-500 mt-1">優缺點對比 · 清盤五級次序 | Pros & Cons · 5-Tier Liquidation</div>
+        </button>
+        <button onclick="selectMindMapBranch('public')" id="mm-btn-public" class="mm-branch-btn p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-300 text-left transition">
+          <div class="text-xs font-bold text-amber-600">6.3 公有制 | Public Ownership</div>
+          <div class="font-extrabold text-slate-900 mt-1">兩類政府部門與公營公司 | 2 Types of Gov. Depts & Public Corp.</div>
+          <div class="text-xs text-slate-500 mt-1">營運基金部門區分 · 公私營提供服務 | Trading Funds & Public Services</div>
+        </button>
+      </div>
+
+      <!-- Mind Map Content Canvas -->
+      <div id="mindmap-content" class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-7 shadow-sm space-y-6">
+        <!-- Rendered dynamically by JS -->
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- VIEW 3: SEPARATE LEVEL LEADERBOARDS (分關排行榜分別顯示)     -->
+    <!-- ========================================================= -->
+    <section id="view-leaderboard" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+            <span>🏆</span> <span>各關卡獨立排行榜（頭三名獎勵榜）| Separate Per-Level Leaderboards (Top 3 Prizes)</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-600 mt-1">
+            每一關的排行榜均獨立計算與顯示，方便老師根據<strong>每一關的頭三名（🥇冠軍 1st、🥈亞軍 2nd、🥉季軍 3rd）</strong>頒發獎勵！目前無任何預設假名，僅顯示真實提交紀錄。
+            <br/><span class="text-slate-500">Each level maintains an independent leaderboard for Top 3 prize awards. No preset dummy names—only student nickname submissions appear.</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="submitScoreToLeaderboard()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-sm transition">
+            📤 立即提交目前成績上榜 | Submit My Score
+          </button>
+          <button id="teacher-login-button" onclick="openTeacherLoginModal()" class="px-4 py-2 rounded-xl border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-bold transition">
+            🔐 教師登入 | Teacher Login
+          </button>
+          <button id="teacher-logout-button" onclick="teacherSignOut()" class="hidden px-4 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold transition">
+            登出教師 | Teacher Logout
+          </button>
+          <button id="teacher-reset-button" onclick="openResetLeaderboardModal()" class="hidden px-4 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs sm:text-sm font-bold transition">
+            🗑️ 教師清空排行榜 | Teacher Reset
+          </button>
+          <button onclick="switchTab('quest')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-sm transition">
+            🎯 繼續闖關 | Back to Quest
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 Separate Level Leaderboards Grid -->
+      <div id="separate-leaderboards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Rendered dynamically by JS -->
+      </div>
+
+      <!-- Overall Combined Leaderboard -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+        <h3 class="text-lg font-extrabold text-slate-900 mb-4 flex items-center gap-2">
+          <span>🌟</span> <span>四關總分龍虎榜（滿分 400 分）| Overall Combined Leaderboard (Max 400 pts)</span>
+        </h3>
+        <div id="overall-leaderboard-list" class="space-y-2">
+          <!-- Rendered dynamically by JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- CELEBRATION MODAL: 恭喜過關！(Shown when all 20 Qs done)    -->
+  <!-- ========================================================= -->
+  <div id="completion-modal" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border-4 border-amber-300 text-center space-y-5 relative overflow-hidden">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-amber-100 text-5xl mx-auto shadow-inner">
+        🎉
+      </div>
+      <div class="space-y-1">
+        <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-extrabold tracking-wide">
+          ALL 4 LEVELS COMPLETED · 全部題目完成
+        </span>
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 mt-2">
+          🎊 恭喜過關！Mission Accomplished! 🎊
+        </h2>
+        <p class="text-sm text-slate-600">
+          你已完成第六課《廠商的擁有權》全部 4 個關卡共 20 題挑戰，成績已自動登錄至各關排行榜！
+          <br/><span class="text-xs text-slate-500">You have completed all 4 levels (20 questions) of Chapter 6: Ownership of Firms. Your scores are now recorded on the leaderboards!</span>
+        </p>
+      </div>
+
+      <!-- Final Score Breakdown -->
+      <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+        <div class="text-sm font-bold text-slate-500">你的最終總成績 | Your Final Total Score</div>
+        <div class="text-4xl font-black text-blue-600">
+          <span id="modal-final-score">0</span> <span class="text-lg text-slate-400 font-bold">/ 400 分 (pts)</span>
+        </div>
+        <div id="modal-level-breakdown" class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200 text-xs">
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <button onclick="closeCompletionModalAndViewLeaderboard()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm shadow-md transition">
+          🏆 查看各關頭三名排行榜 | View Top 3 Leaderboards
+        </button>
+        <button onclick="closeCompletionModal()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition">
+          🔍 留在頁面重溫解析 | Stay & Review Explanations
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Profile Modal -->
+  <div id="profile-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+      <h3 class="text-lg font-extrabold text-slate-900">👤 設定排行榜暱稱 | Set Leaderboard Nickname</h3>
+      <p class="text-xs text-slate-500">請使用自選暱稱，不要輸入真實姓名、學號或其他個人資料。| Use a nickname; do not enter your real name, student number, or other personal information.</p>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">班別 | Class</label>
+          <div class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm">中四中文經濟 | Form 4 Economics</div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">自選暱稱 | Nickname (最多 20 字)</label>
+          <input id="input-student-name" type="text" maxlength="20" value="經濟學習者" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-500" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeProfileModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm font-bold">取消 | Cancel</button>
+        <button onclick="saveStudentProfile()" class="px-5 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold">儲存設定 | Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teacher Login Modal -->
+  <div id="teacher-login-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-indigo-200 space-y-4">
+      <h3 class="text-lg font-extrabold text-indigo-900">🔐 教師登入 | Teacher Login</h3>
+      <p class="text-xs text-slate-600">只有已建立的教師帳戶可以管理及清空本班排行榜。</p>
+      <label class="block text-xs font-bold text-slate-600">教師 Email</label>
+      <input id="teacher-email" type="email" autocomplete="username" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+      <label class="block text-xs font-bold text-slate-600">教師密碼</label>
+      <input id="teacher-password" type="password" autocomplete="current-password" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeTeacherLoginModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm font-bold">取消</button>
+        <button onclick="teacherSignIn()" class="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold">登入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teacher Reset Leaderboard Confirmation Modal (No confirm() used) -->
+  <div id="reset-lb-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-rose-200 space-y-4">
+      <h3 class="text-lg font-extrabold text-rose-800">⚠️ 確認清空排行榜？| Confirm Reset Leaderboards?</h3>
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        此操作只會清除「中四中文經濟 | Form 4 Economics」的排行榜成績紀錄。
+        <br/><span class="text-slate-500">This will clear the leaderboard records for Form 4 Economics only.</span>
+      </p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeResetLeaderboardModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm font-bold">取消 | Cancel</button>
+        <button onclick="confirmResetLeaderboard()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold">確認清空 | Confirm Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. STRICT BILINGUAL DATA & ANALOGOUS SCENARIOS (全中英對照 · 仿作實例與參考標註)
+    // =========================================================================
+    const LEVELS = [
+      {
+        id: 0,
+        shortTitle: "第一關 | Level 1",
+        title: "私有制：獨資與合夥 | Sole Proprietorship & Partnership",
+        subtitle: "無限債務責任 · 不是法人 · 優缺點對比 | Unlimited Liability & Not a Legal Entity",
+        color: "blue"
+      },
+      {
+        id: 1,
+        shortTitle: "第二關 | Level 2",
+        title: "私有制：有限公司 | Limited Companies",
+        subtitle: "有限債務責任 · 獨立法人 · 私人 vs 公眾 | Limited Liability & Separate Legal Entity",
+        color: "indigo"
+      },
+      {
+        id: 2,
+        shortTitle: "第三關 | Level 3",
+        title: "股票、債券與清盤 | Shares, Bonds & Liquidation",
+        subtitle: "公司發行 vs 小投資者 · 清盤五級次序 | Issuing vs Buying & Liquidation Priority",
+        color: "emerald"
+      },
+      {
+        id: 3,
+        shortTitle: "第四關 | Level 4",
+        title: "公有制與公私營抉擇 | Public Ownership & Provision",
+        subtitle: "兩類政府部門 vs 公營公司 · 公共服務 | 2 Gov. Dept Types vs Public Corporations",
+        color: "amber"
+      }
+    ];
+
+    // 20 Fully Bilingual Questions across 4 levels (5 questions per level, 20 pts each = 400 total)
+    const QUESTIONS = [
+      // ==================== LEVEL 1: 獨資與合夥 ====================
+      {
+        id: "L1Q1",
+        level: 0,
+        type: "dnd",
+        typeLabel: "拖拽分類題 | Drag & Drop",
+        refTag: "參考例子：6.1 獨資與合夥特徵對比 | Ref: Sec 6.1 Sole Proprietorship vs Partnership",
+        points: 20,
+        title: "比較「獨資」與「合夥」的特徵及優缺點 | Comparing Sole Proprietorship & Partnership",
+        prompt: `
+          <p>獨資和合夥的東主均須承擔<strong>無限債務責任 (Unlimited Liability)</strong>，且兩者均<strong>不是法人 (Not a Separate Legal Entity)</strong>，但兩者在資金來源、決策靈活性及利潤分配等方面有所不同。請將下列 6 項中英對照特徵拖放到正確的商業擁有權類別中：</p>
+          <p class="text-slate-600 text-xs sm:text-sm">Owners of both sole proprietorships and partnerships bear <strong>unlimited liability</strong> and neither is a <strong>separate legal entity</strong>, yet they differ in capital sources, decision-making flexibility, and profit sharing. Drag each of the 6 bilingual cards into the correct category:</p>
+        `,
+        buckets: [
+          { id: "sole", label: "獨資 | Sole Proprietorship" },
+          { id: "part", label: "合夥 | Partnership" }
+        ],
+        items: [
+          { id: "i1", text: "資金來源較有限（只靠個人儲蓄、向親友或銀行借款）| More limited sources of capital (relying only on personal savings, loans from relatives/friends or banks)", target: "sole" },
+          { id: "i2", text: "決策的靈活性較高（東主可自行作出決定，毋須徵求他人同意）| Higher flexibility in decision-making (owner can make decisions independently without seeking others' consent)", target: "sole" },
+          { id: "i3", text: "由東主獨享所有利潤及獨自承擔所有風險 | Owner enjoys all profits alone and bears all risks alone", target: "sole" },
+          { id: "i4", text: "資金來源較廣（可由多名合夥人提供資本，較易向銀行借款）| Wider sources of capital (capital contributed by multiple partners; easier to obtain bank loans)", target: "part" },
+          { id: "i5", text: "管理人員在決策時可以集思廣益，但決策靈活性較低 | Can pool ideas in decision-making, but lower flexibility in decision-making", target: "part" },
+          { id: "i6", text: "專門化程度較高（合夥人可根據各自的專長分工合作）| Higher degree of specialization (partners can divide labour according to their expertise)", target: "part" }
+        ],
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】獨資與合夥的核心定義、特徵及優缺點對比：</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>共同法律地位（不是法人 & 無限債務責任）：</strong>獨資和合夥在法律上<strong>不是獨立個體（不是法人）</strong>，東主須以個人名義擁有財產、簽訂合同和參與訴訟。東主承擔<strong>無限債務責任</strong>，即東主的債務責任不限於其投資在廠商的金額，可能要動用個人資產償債。</li>
+              <li><strong>獨資 (Sole Proprietorship)：</strong>只有 1 名東主。優點是<strong>決策的靈活性較高</strong>及<strong>獨享所有利潤</strong>；缺點是<strong>資金來源較有限</strong>、缺乏專門化及須獨自承擔風險。</li>
+              <li><strong>合夥 (Partnership)：</strong>由 2 名或以上東主（合夥人）共同擁有。優點是<strong>資金來源較廣</strong>、<strong>專門化程度較高</strong>及<strong>共同承擔風險</strong>；缺點是<strong>決策的靈活性較低</strong>（重大決定須取得所有合夥人同意，易生分歧）及須<strong>分享利潤</strong>。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation] Comparison of Sole Proprietorship & Partnership:</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Shared Legal Status (Not a Separate Legal Entity & Unlimited Liability):</strong> Neither is a separate legal entity; owners own property, sign contracts, and sue/are sued in their personal names. Owners bear <strong>unlimited liability</strong>—their liability is not limited to their investment in the firm, so they may have to use personal assets to repay debts.</li>
+              <li><strong>Sole Proprietorship:</strong> Owned by 1 owner. Pros: higher flexibility in decision-making and sole enjoyment of profits. Cons: more limited capital sources, lack of specialization, and bearing all risks alone.</li>
+              <li><strong>Partnership:</strong> Owned by 2 or more partners. Pros: wider capital sources, higher degree of specialization, and risk sharing. Cons: lower decision-making flexibility (major decisions require unanimous consent) and profit sharing.</li>
+            </ul>
+          </div>
+        `
+      },
+      {
+        id: "L1Q2",
+        level: 0,
+        type: "mcq",
+        typeLabel: "法律概念應用題 | Legal Concept Application",
+        refTag: "參考例子：圖 6.2 餐廳顧客滑倒訴訟案例 | Ref: Fig. 6.2 Restaurant Negligence Lawsuit Case",
+        points: 20,
+        title: "「不是法人」與「無限債務責任」的法律含義 | Meaning of 'Not a Legal Entity' & 'Unlimited Liability'",
+        prompt: `
+          <p><strong>情境：</strong>李先生（Mr. Lee）以<strong>獨資</strong>形式經營一間精品咖啡店。某天，顧客張小姐（Ms. Cheung）因店內地面濕滑而意外跌倒受傷，決定提出索償訴訟。下列哪項描述<strong>完全符合</strong>獨資的法律地位及債務責任定義？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> Mr. Lee operates a boutique café as a <strong>sole proprietorship</strong>. One day, a customer, Ms. Cheung, slips on a wet floor inside the café, suffers injuries, and decides to file a lawsuit for compensation. Which statement accurately describes the legal status and liability of this sole proprietorship?</p>
+        `,
+        options: [
+          { id: "A", text: "該咖啡店是獨立法人，張小姐只能起訴該咖啡店，李先生的個人住宅和私人存款完全受到法律保護。| The café is a separate legal entity; Ms. Cheung can only sue the café, and Mr. Lee's personal home and private savings are completely protected." },
+          { id: "B", text: "該咖啡店不是法人（在法律上不是獨立個體），張小姐須直接起訴李先生個人；李先生承擔無限債務責任，若咖啡店資產不足以賠償，他須動用個人資產償還。| The café is not a separate legal entity, so Ms. Cheung must sue Mr. Lee personally; Mr. Lee bears unlimited liability and must use his personal assets if the café's assets are insufficient." },
+          { id: "C", text: "李先生的賠償責任僅限於他最初投入該咖啡店的資本金額，超出部分由政府承擔。| Mr. Lee's liability is limited solely to the initial capital he invested in the café, with any excess covered by the government." },
+          { id: "D", text: "李先生必須立即向公眾披露咖啡店的年度財務報表，以證明其償債能力。| Mr. Lee must immediately disclose the café's annual financial statements to the public to prove his solvency." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>不是法人 (Not a Separate Legal Entity)：</strong>獨資企業在法律上<strong>不是獨立個體</strong>，不能以企業自身名義擁有財產、簽訂合同或參與訴訟。因此張小姐須以李先生的<strong>個人名義</strong>向他提出訴訟。</li>
+              <li><strong>無限債務責任 (Unlimited Liability)：</strong>東主的債務責任<strong>不限於</strong>其投資在廠商的金額。若咖啡店資產不足以支付賠償，李先生必須<strong>動用個人資產</strong>來償還債務。</li>
+              <li><strong>選項 D 錯誤：</strong>獨資企業<strong>毋須向公眾披露財務資料</strong>。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation]</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Not a Separate Legal Entity:</strong> A sole proprietorship has no independent legal identity; the owner owns property, signs contracts, and sues or is sued in his/her <strong>personal name</strong>. Thus, Ms. Cheung sues Mr. Lee personally.</li>
+              <li><strong>Unlimited Liability:</strong> The owner's liability for the firm's debts is <strong>not limited</strong> to the amount invested in the firm. If the café's assets cannot cover the compensation, Mr. Lee must use his <strong>personal assets</strong> to repay the debt.</li>
+              <li><strong>Option D is incorrect:</strong> Sole proprietorships are <strong>not required to disclose financial information to the public</strong>.</li>
+            </ul>
+          </div>
+        `
+      },
+      {
+        id: "L1Q3",
+        level: 0,
+        type: "mcq",
+        typeLabel: "情境分析題 | Case Analysis",
+        refTag: "參考例子：批發商採購合約約束力案例 | Ref: Wholesaler Binding Purchase Contract Case",
+        points: 20,
+        title: "合夥人決策的法律約束力 | Legal Binding Effect of a Partner's Decision",
+        prompt: `
+          <p><strong>情境：</strong>嘉欣（Ka-yan）和偉文（Wai-man）是一間高級食材批發商的合夥人。某天，嘉欣在<strong>未有徵求偉文同意</strong>的情況下，以商號名義向海外供應商簽訂了一份總值 $60,000 的松露採購合約。這項購買決定對合夥人偉文有何影響？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> Ka-yan and Wai-man are partners in a gourmet food wholesaler. One day, <strong>without seeking Wai-man's consent</strong>, Ka-yan signs a $60,000 truffle supply contract with an overseas supplier on behalf of the business. How does this purchase decision affect partner Wai-man?</p>
+        `,
+        options: [
+          { id: "A", text: "該合約在法律上自動無效，因為所有合夥合約必須先經全體合夥人書面簽署。| The contract is automatically void because all partnership contracts must be signed in writing by every partner." },
+          { id: "B", text: "只有嘉欣須承擔這 $60,000 貨款的無限債務責任，偉文完全毋須負上任何法律或財務責任。| Only Ka-yan bears unlimited liability for the $60,000 payment; Wai-man bears zero legal or financial responsibility." },
+          { id: "C", text: "個別合夥人作出的決定對所有合夥人都具有法律約束力，偉文亦須共同承擔這項交易帶來的債務責任（無限債務責任）。| Decisions made by an individual partner are legally binding on all partners, so Wai-man is also jointly liable (with unlimited liability) for the debts arising from this transaction." },
+          { id: "D", text: "批發商自動轉為私人有限公司，由董事局承擔有關貨款。| The wholesaler automatically converts into a private limited company, with the board of directors bearing the payment." }
+        ],
+        correct: "C",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong>在合夥中，<strong>「個別合夥人作出的決定對所有合夥人都具有法律約束力」</strong>。即使嘉欣未有事先徵求偉文的同意，該份 $60,000 的採購合約對所有合夥人（包括偉文）均具法律約束力；如果商號無力償還貨款，所有合夥人都須共同承擔<strong>無限債務責任</strong>。</p>
+            <hr class="border-slate-200"/>
+            <p class="<strong>[English Explanation]</strong> text-slate-700">In a partnership, <strong>decisions made by an individual partner are legally binding on all partners</strong>. Even though Ka-yan did not seek Wai-man's prior consent, the $60,000 supply contract binds all partners (including Wai-man). If the firm cannot repay the debt, all partners jointly bear <strong>unlimited liability</strong>.</p>
+          </div>
+        `
+      },
+      {
+        id: "L1Q4",
+        level: 0,
+        type: "mcq",
+        typeLabel: "企業延續性題 | Continuity Case",
+        refTag: "參考例子：麵包店合夥人退出案例 | Ref: Bakery Partner Withdrawal Case",
+        points: 20,
+        title: "缺乏延續性與擁有權轉讓限制 | Lack of Continuity & Ownership Transfer Restrictions",
+        prompt: `
+          <p><strong>情境：</strong>志豪（Chi-ho）、雅詩（Nga-sze）和俊傑（Chun-kit）合夥經營一間手工烘焙店。半年後，俊傑決定移民並退出合夥。這會對該烘焙店的法律存續帶來甚麼後果？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> Chi-ho, Nga-sze, and Chun-kit operate an artisan bakery as a partnership. Six months later, Chun-kit decides to emigrate and withdraws from the partnership. What is the consequence for the legal continuity of the bakery?</p>
+        `,
+        options: [
+          { id: "A", text: "原有合夥不會受任何影響，因為合夥在法律上擁有持久的延續性。| The existing partnership is unaffected because partnerships enjoy lasting continuity." },
+          { id: "B", text: "原有合夥會因此解散（缺乏延續性），志豪和雅詩如欲繼續經營，便須成立新的合夥。| The existing partnership is dissolved due to a lack of continuity; if Chi-ho and Nga-sze wish to continue operating, they must form a new partnership." },
+          { id: "C", text: "俊傑可以自由在公開市場將其合夥擁有權出售給任何公眾人士，毋須志豪和雅詩同意。| Chun-kit may freely sell his partnership ownership to any member of the public on the open market without Chi-ho and Nga-sze's consent." },
+          { id: "D", text: "烘焙店必須立即向法院申請委任清盤人進行清盤。| The bakery must immediately apply to the court to appoint a liquidator for winding up." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】缺乏延續性 (Lack of Continuity)：</strong>獨資和合夥均缺乏延續性。當東主退休、破產、逝世，或有新合夥人加入／現有合夥人退出（如俊傑退出）時，<strong>原有的合夥便會解散，須成立新的合夥</strong>。此外，合夥擁有權的轉讓必須得到其他合夥人的同意，不能自由轉讓。</p>
+            <hr class="border-slate-200"/>
+            <p class="<strong>[English Explanation] Lack of Continuity:</strong> text-slate-700">Both sole proprietorships and partnerships lack continuity. If an owner retires, goes bankrupt, passes away, or if a partner withdraws (like Chun-kit) or a new partner joins, the <strong>existing partnership is dissolved and a new one must be formed</strong>. Moreover, transferring partnership ownership requires the consent of all other partners.</p>
+          </div>
+        `
+      },
+      {
+        id: "L1Q5",
+        level: 0,
+        type: "mcq",
+        typeLabel: "優缺點對比題 | Pros & Cons Comparison",
+        refTag: "參考例子：花店由合夥轉為有限公司決策 | Ref: Florist Converting from Partnership to Ltd Co.",
+        points: 20,
+        title: "從「合夥」轉為「有限公司」的優缺點對比 | Converting from Partnership to Limited Company",
+        prompt: `
+          <p><strong>情境：</strong>一間由三位花藝師經營的合夥花店，決定註冊轉型為「有限公司」。下列哪項<strong>正確比較</strong>了轉型為有限公司後的優點與缺點？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> A florist shop operated as a partnership by three florists decides to incorporate as a "Limited Company". Which option <strong>accurately compares</strong> the advantages and disadvantages after converting into a limited company?</p>
+        `,
+        options: [
+          { id: "A", text: "優點：開業手續變得更簡單；缺點：東主須承擔無限債務責任。| Advantage: Simpler set-up procedures; Disadvantage: Owners bear unlimited liability." },
+          { id: "B", text: "優點：東主只須承擔有限債務責任及企業成為獨立法人（具有持久延續性）；缺點：開業手續較為複雜及須向公眾披露部分資料。| Advantage: Owners enjoy limited liability and the firm becomes a separate legal entity with lasting continuity; Disadvantage: More complicated set-up procedures and requirement to disclose some information to the public." },
+          { id: "C", text: "優點：擁有權與管理權合而為一；缺點：資金來源比合夥更狹窄。| Advantage: Ownership and management are combined; Disadvantage: Narrower sources of capital than a partnership." },
+          { id: "D", text: "優點：與顧客及僱員的關係變得更緊密；缺點：企業不再是獨立法人。| Advantage: Closer relationships with customers and employees; Disadvantage: The firm is no longer a separate legal entity." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>轉為有限公司的優點：</strong>企業成為<strong>獨立法人</strong>（能以自身名義擁有財產、簽訂合同和參與訴訟）、東主只須承擔<strong>有限債務責任</strong>（債務責任僅限於其投資在廠商的金額，毋須動用個人資產償債）、<strong>持久的延續性</strong>及<strong>資金來源較廣</strong>。</li>
+              <li><strong>轉為有限公司的缺點：</strong><strong>開業手續較為複雜</strong>（須擬備公司章程細則及向公司註冊處註冊，設立成本較高）、<strong>擁有權和管理權分開</strong>，以及<strong>須向公眾披露部分資料</strong>。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation]</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Advantages of converting to a Limited Company:</strong> Becomes a <strong>separate legal entity</strong>, owners enjoy <strong>limited liability</strong> (liability is limited to the amount invested, without risking personal assets), <strong>lasting continuity</strong>, and wider capital sources.</li>
+              <li><strong>Disadvantages:</strong> <strong>More complicated set-up procedures</strong> (higher registration costs), <strong>separation of ownership and management</strong>, and requirement to <strong>disclose some information to the public</strong>.</li>
+            </ul>
+          </div>
+        `
+      },
+
+      // ==================== LEVEL 2: 有限公司 ====================
+      {
+        id: "L2Q1",
+        level: 1,
+        type: "dnd",
+        typeLabel: "拖拽分類題 | Drag & Drop",
+        refTag: "參考例子：6.1 私人有限公司與公眾有限公司對比 | Ref: Sec 6.1 Private vs Public Limited Company",
+        points: 20,
+        title: "比較「私人有限公司」與「公眾有限公司」的特徵及優缺點 | Comparing Private & Public Limited Companies",
+        prompt: `
+          <p>私人有限公司和公眾有限公司均屬於<strong>獨立法人</strong>，且東主均只須承擔<strong>有限債務責任</strong>，但兩者在股東人數、集資能力及股票轉讓上有明顯分別。請將下列 6 項中英對照特徵拖放到正確的類別中：</p>
+          <p class="text-slate-600 text-xs sm:text-sm">Both private and public limited companies are <strong>separate legal entities</strong> whose shareholders enjoy <strong>limited liability</strong>, but they differ in shareholder limits, capital raising, and share transferability. Drag each bilingual card into the correct category:</p>
+        `,
+        buckets: [
+          { id: "private_co", label: "私人有限公司 | Private Limited Company" },
+          { id: "public_co", label: "公眾有限公司 | Public Limited Company" }
+        ],
+        items: [
+          { id: "p1", text: "股東數目為 1 至 50 名 | Number of shareholders is 1 to 50", target: "private_co" },
+          { id: "p2", text: "轉讓股票須得到其他股東的同意，被收購風險較低 | Transfer of shares requires other shareholders' consent; lower risk of takeover", target: "private_co" },
+          { id: "p3", text: "毋須向公眾披露財務資料（保密程度較高）| Not required to disclose financial information to the public (higher confidentiality)", target: "private_co" },
+          { id: "p4", text: "股東數目為 1 名至無限 | Number of shareholders is 1 to infinity", target: "public_co" },
+          { id: "p5", text: "可以向公眾發行股票或債券集資，資金來源最廣 | Can issue shares or bonds to the public to raise capital; widest sources of capital", target: "public_co" },
+          { id: "p6", text: "股票可以自由轉讓，但被其他公司收購的風險較高 | Shares can be transferred freely, but faces a higher risk of takeover by other companies", target: "public_co" }
+        ],
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】私人有限公司 vs 公眾有限公司：</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>私人有限公司 (Private Limited Company)：</strong>股東數目 <strong>1 至 50 名</strong>；<strong>不能</strong>向公眾發行股票或債券；<strong>轉讓股票須得到其他股東的同意</strong>（因此<strong>被收購的風險較低</strong>）；<strong>毋須向公眾披露財務資料</strong>。</li>
+              <li><strong>公眾有限公司 (Public Limited Company)：</strong>股東數目 <strong>1 名至無限</strong>；<strong>可以</strong>向公眾發行股票或債券（資金來源更廣）；<strong>股票可以自由轉讓</strong>（因此<strong>被收購的風險較高</strong>）；<strong>必須向公眾披露財務資料</strong>。股票在證券交易所掛牌買賣的公眾有限公司稱為<strong>上市公司 (Listed Company)</strong>。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation] Private vs. Public Limited Company:</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Private Limited Company:</strong> <strong>1 to 50 shareholders</strong>; <strong>cannot</strong> issue shares or bonds to the public; share transfer requires other shareholders' consent (hence <strong>lower takeover risk</strong>); <strong>no public disclosure of financial information</strong>.</li>
+              <li><strong>Public Limited Company:</strong> <strong>1 to unlimited shareholders</strong>; <strong>can</strong> issue shares or bonds to the public (widest capital sources); shares are <strong>freely transferable</strong> (hence <strong>higher takeover risk</strong>); <strong>must disclose financial information to the public</strong>. Those traded on a stock exchange are called <strong>listed companies</strong>.</li>
+            </ul>
+          </div>
+        `
+      },
+      {
+        id: "L2Q2",
+        level: 1,
+        type: "mcq",
+        typeLabel: "核心定義辨析 | Core Legal Definition",
+        refTag: "參考例子：6.1 獨立法人與有限債務責任定義 | Ref: Sec 6.1 Separate Legal Entity & Limited Liability",
+        points: 20,
+        title: "「獨立法人」與「有限債務責任」的關係 | Relationship Between 'Separate Legal Entity' & 'Limited Liability'",
+        prompt: `
+          <p><strong>情境：</strong>星河科技有限公司（Starlight Tech Limited）是一間<strong>獨立法人</strong>。後來該公司因業務虧損而清盤，變賣所有公司資產後仍欠債權人 500 萬元。下列哪項關於該公司及股東責任的陳述<strong>完全正確</strong>？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> Starlight Tech Limited is a <strong>separate legal entity</strong>. Later, the company goes into liquidation due to business losses, and after selling all company assets, it still owes creditors $5 million. Which statement about the liability of the company and its shareholders is <strong>completely correct</strong>?</p>
+        `,
+        options: [
+          { id: "A", text: "星河科技有限公司不能以自身名義擁有財產或參與訴訟，必須由全體股東代表。| Starlight Tech Limited cannot own property or sue/be sued in its own name; all shareholders must represent it." },
+          { id: "B", text: "股東須動用個人物業和私人銀行存款來填補公司剩餘的 500 萬元債務。| Shareholders must use their personal properties and private bank savings to cover the remaining $5 million debt." },
+          { id: "C", text: "由於有限公司是獨立法人，由公司自行承擔所有債務責任；股東享有有限債務責任，其債務責任僅限於其投資在公司的金額，毋須動用個人資產償債。| Because a limited company is a separate legal entity, the company bears its own debts; shareholders enjoy limited liability (limited to the amount invested in the company) and do not need to use personal assets." },
+          { id: "D", text: "只有持股超過 50% 的大股東才享有有限債務責任，小股東須承擔無限債務責任。| Only major shareholders holding over 50% enjoy limited liability; minority shareholders bear unlimited liability." }
+        ],
+        correct: "C",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】獨立法人與有限債務責任的定義：</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>獨立法人 (Separate Legal Entity)：</strong>企業在法律上是一個獨立的個體，可以企業自身的名義擁有財產、簽訂合同及參與訴訟。</li>
+              <li><strong>有限債務責任 (Limited Liability)：</strong>東主（股東）的債務責任<strong>僅限於其投資在廠商的金額</strong>。由於有限公司是獨立法人，由公司自行承擔所有債務責任，股東<strong>毋須動用個人資產</strong>來償還有限公司的債務。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation] Definitions of Separate Legal Entity & Limited Liability:</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Separate Legal Entity:</strong> An entity with an independent legal identity that can own property, sign contracts, and sue or be sued in its own name.</li>
+              <li><strong>Limited Liability:</strong> Owners' (shareholders') liability for the firm's debts is <strong>limited to the amount they have invested in the firm</strong>. As a separate legal entity, the company bears its own debts and shareholders do not need to use personal assets.</li>
+            </ul>
+          </div>
+        `
+      },
+      {
+        id: "L2Q3",
+        level: 1,
+        type: "mcq",
+        typeLabel: "企業管治架構 | Corporate Governance",
+        refTag: "參考例子：6.1 擁有權和管理權分開 | Ref: Sec 6.1 Separation of Ownership & Management",
+        points: 20,
+        title: "擁有權和管理權分開 | Separation of Ownership and Management",
+        prompt: `
+          <p>在有限公司中，<strong>擁有權和管理權是分開的</strong>。下列哪項<strong>準確配對</strong>了「股東」、「董事局」和「管理人員」的職責？</p>
+          <p class="text-slate-600 text-xs sm:text-sm">In a limited company, <strong>ownership and management are separated</strong>. Which option <strong>accurately matches</strong> the roles of "Shareholders", the "Board of Directors", and "Management Staff"?</p>
+        `,
+        options: [
+          { id: "A", text: "股東負責處理公司日常營運；董事局負責在股東大會投票選舉管理人員。| Shareholders handle daily operations; the Board of Directors votes in the general meeting to elect management staff." },
+          { id: "B", text: "股東選舉董事局；董事局制定主要政策、編製預算及監督公司運作；管理人員執行政策及處理日常營運。| Shareholders elect the Board of Directors; the Board formulates major policies, prepares budgets, and supervises operations; management staff execute policies and handle daily operations." },
+          { id: "C", text: "董事局由政府直接委任；管理人員全部屬於公務員。| The Board of Directors is directly appointed by the government; all management staff are civil servants." },
+          { id: "D", text: "管理人員在股東大會上擁有投票權，並決定是否向股東派發股息。| Management staff hold voting rights at the shareholders' meeting and decide whether to declare dividends." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong>在有限公司中，<strong>股東</strong>是公司的東主，在股東大會投票<strong>選舉董事局</strong>；<strong>董事局</strong>負責<strong>制定主要政策、編製預算及監督公司運作</strong>；由董事局聘請的專業<strong>管理人員</strong>則負責<strong>執行政策及處理日常營運</strong>。這樣做可聘請專業人才提升效率，但股東與管理人員之間可能出現利益衝突。</p>
+            <hr class="border-slate-200"/>
+            <p class="<strong>[English Explanation]</strong> text-slate-700">In a limited company, <strong>shareholders</strong> (the owners) elect the <strong>Board of Directors</strong> at the shareholders' meeting; the <strong>Board</strong> formulates major policies, prepares budgets, and supervises operations; professional <strong>management staff</strong> hired by the Board execute policies and run daily operations. While specialized managers boost efficiency, conflicts of interest may arise between shareholders and managers.</p>
+          </div>
+        `
+      },
+      {
+        id: "L2Q4",
+        level: 1,
+        type: "mcq",
+        typeLabel: "私有化案例分析 | Privatization Case Analysis",
+        refTag: "參考例子：生活實例 6.1 I.T Limited 私有化 / 題目 6.1 | Ref: Real-life Example 6.1 Privatization & Worked Example 6.1",
+        points: 20,
+        title: "上市公司「私有化」轉為私人有限公司的優缺點 | Pros & Cons of Privatizing a Listed Company",
+        prompt: `
+          <p><strong>情境：</strong>卓賢（Cheuk-yin）是一間知名連鎖茶飲上市公司（公眾有限公司）的大股東，他決定向小股東收購所有公眾股份，將公司<strong>私有化 (Privatisation)</strong> 轉為私人有限公司。下列哪項正確指出私有化後的<strong>一項優點及一項缺點</strong>？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> Cheuk-yin is the major shareholder of a well-known listed bubble-tea chain (a public limited company). He buys out all public shares to <strong>privatize</strong> the firm into a private limited company. Which option accurately states <strong>one advantage and one disadvantage</strong> after privatization?</p>
+        `,
+        options: [
+          { id: "A", text: "優點：可以向公眾發行股票集資；缺點：必須向公眾披露財務資料。| Advantage: Can issue shares to the public to raise capital; Disadvantage: Must disclose financial information to the public." },
+          { id: "B", text: "優點：毋須向公眾披露財務資料（且被收購風險減少）；缺點：不能向公眾發行股票或債券集資（且轉讓擁有權須其他股東同意）。| Advantage: No longer required to disclose financial information to the public (and lower takeover risk); Disadvantage: Cannot issue shares or bonds to the public to raise capital (and share transfers require other shareholders' consent)." },
+          { id: "C", text: "優點：股東人數可增至無限名；缺點：股東須改為承擔無限債務責任。| Advantage: Number of shareholders can increase to infinity; Disadvantage: Shareholders must bear unlimited liability." },
+          { id: "D", text: "優點：股票可在聯交所自由買賣；缺點：企業失去獨立法人地位。| Advantage: Shares can be freely traded on the stock exchange; Disadvantage: The firm loses its separate legal entity status." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong>當公眾有限公司進行<strong>私有化 (Privatisation)</strong> 轉為私人有限公司後：</p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>主要優點：</strong>(1) <strong>毋須向公眾披露財務資料</strong>（商業機密更保密）；(2) <strong>被其他公司收購的風險減少</strong>（因股票不可自由轉讓）。</li>
+              <li><strong>主要缺點：</strong>(1) <strong>不能向公眾發行股票或債券集資</strong>（資金來源較狹窄）；(2) <strong>轉讓擁有權須得到其他股東同意</strong>，且股東人數限於 1 至 50 名。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation]</strong> When a public limited company undergoes <strong>privatization</strong> into a private limited company:</p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Advantages:</strong> (1) <strong>No longer required to disclose financial information to the public</strong> (greater confidentiality); (2) <strong>Lower risk of takeover</strong> by other firms since shares cannot be freely transferred.</li>
+              <li><strong>Disadvantages:</strong> (1) <strong>Cannot issue shares or bonds to the public</strong> to raise capital (narrower capital sources); (2) <strong>Share transfers require other shareholders' consent</strong>, and shareholder count is capped at 1 to 50.</li>
+            </ul>
+          </div>
+        `
+      },
+      {
+        id: "L2Q5",
+        level: 1,
+        type: "mcq",
+        typeLabel: "企業識別推理 | Firm Identification",
+        refTag: "參考例子：專家錦囊 6.2 廠商 X 與廠商 Y 識別 | Ref: Expert Tip 6.2 Identifying Firm Types",
+        points: 20,
+        title: "根據特徵識別商業擁有權種類 | Identifying Types of Business Ownership from Features",
+        prompt: `
+          <p><strong>情境：</strong>以下是兩間私營企業（廠商 A 與廠商 B）的資料：<br/>
+          • <strong>廠商 A (Firm A)：</strong>東主數目為 4 名，東主享有有限債務責任，且可以向公眾發行股票集資。<br/>
+          • <strong>廠商 B (Firm B)：</strong>東主數目為 15 名，毋須向公眾披露財務資料，且轉讓擁有權須得到其他東主同意。<br/>
+          這兩間廠商分別屬於哪種商業擁有權？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> Information on two private enterprises (Firm A and Firm B):<br/>
+          • <strong>Firm A:</strong> Has 4 owners, owners enjoy limited liability, and it can issue shares to the public.<br/>
+          • <strong>Firm B:</strong> Has 15 owners, is not required to disclose financial information to the public, and transferring ownership requires other owners' consent.<br/>
+          What types of business ownership are Firm A and Firm B?</p>
+        `,
+        options: [
+          { id: "A", text: "廠商 A 是私人有限公司；廠商 B 只能是獨資。| Firm A is a private limited company; Firm B can only be a sole proprietorship." },
+          { id: "B", text: "廠商 A 是公眾有限公司；廠商 B 可能是合夥 或 私人有限公司。| Firm A is a public limited company; Firm B could be a partnership OR a private limited company." },
+          { id: "C", text: "廠商 A 是合夥；廠商 B 是公眾有限公司。| Firm A is a partnership; Firm B is a public limited company." },
+          { id: "D", text: "廠商 A 和廠商 B 均只能是私人有限公司。| Both Firm A and Firm B can only be private limited companies." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>廠商 A：</strong>在所有私營企業中，<strong>只有公眾有限公司</strong>可以向公眾發行股票集資（且公眾有限公司的股東人數為 1 名至無限，因此 4 名股東完全符合）。</li>
+              <li><strong>廠商 B：</strong>東主為 15 名（排除只有 1 名東主的獨資）；毋須向公眾披露財務資料及轉讓須其他東主同意（排除公眾有限公司）。<strong>合夥</strong>（2 名或以上）及<strong>私人有限公司</strong>（1 至 50 名）均完全符合這三項特徵，因此廠商 B 可能是<strong>合夥 或 私人有限公司</strong>。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation]</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Firm A:</strong> Among all private enterprises, <strong>only a public limited company</strong> can issue shares to the public (and its shareholder limit is 1 to infinity, so 4 owners fits).</li>
+              <li><strong>Firm B:</strong> 15 owners rules out sole proprietorship (1 owner); no public financial disclosure and restricted ownership transfer rule out public limited company. Both a <strong>partnership</strong> (2+ owners) and a <strong>private limited company</strong> (1–50 owners) fit all three features.</li>
+            </ul>
+          </div>
+        `
+      },
+
+      // ==================== LEVEL 3: 股票與債券 ====================
+      {
+        id: "L3Q1",
+        level: 2,
+        type: "dnd",
+        typeLabel: "五級排序分類 | 5-Tier Priority",
+        refTag: "參考例子：6.2 清盤時取回資本的優先次序 | Ref: Sec 6.2 Liquidation Priority Order",
+        points: 20,
+        title: "有限公司清盤時取回資本的五級優先次序 | 5-Tier Liquidation Priority Order",
+        prompt: `
+          <p>當一間有限公司清盤並變賣資產後，會按照法定的<strong>五個優先次序</strong>償還債務及分發剩餘資本。請將下列 5 個受償群體拖放到正確的優先次序位置（第 1 位最先獲償，第 5 位最後）：</p>
+          <p class="text-slate-600 text-xs sm:text-sm">When a limited company goes into liquidation and sells its assets, proceeds are distributed in a statutory <strong>5-tier priority order</strong>. Drag each claimant group into the correct rank (1st is paid first; 5th is paid last):</p>
+        `,
+        buckets: [
+          { id: "rank1", label: "第 1 位（最優先）| 1st Priority" },
+          { id: "rank2", label: "第 2 位 | 2nd Priority" },
+          { id: "rank3", label: "第 3 位 | 3rd Priority" },
+          { id: "rank4", label: "第 4 位 | 4th Priority" },
+          { id: "rank5", label: "第 5 位（最後）| 5th Priority" }
+        ],
+        items: [
+          { id: "r1", text: "有抵押債權人（例如提供按揭的銀行）| Secured creditors (e.g. banks providing mortgage loans)", target: "rank1" },
+          { id: "r2", text: "清盤人（處理清盤程序的費用與酬金）| Liquidator (liquidation fees and expenses)", target: "rank2" },
+          { id: "r3", text: "政府和公司的僱員（欠稅及欠薪）| The government and the company's employees (unpaid taxes & wages)", target: "rank3" },
+          { id: "r4", text: "無抵押債權人（例如債券持有人）| Unsecured creditors (e.g. bondholders / debenture holders)", target: "rank4" },
+          { id: "r5", text: "股東（公司的東主）| Shareholders (owners of the company)", target: "rank5" }
+        ],
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】有限公司清盤時取回資本的五級優先次序：</strong></p>
+            <ol class="list-decimal pl-5 space-y-1">
+              <li><strong>有抵押債權人 (Secured Creditors)：</strong>例如提供按揭貸款的銀行。</li>
+              <li><strong>清盤人 (Liquidator)：</strong>負責變賣資產及處理清盤事務的費用。</li>
+              <li><strong>政府和公司的僱員 (The Government and Employees)：</strong>拖欠政府的稅項及僱員的薪金。</li>
+              <li><strong>無抵押債權人 (Unsecured Creditors)：</strong>例如<strong>債券持有人</strong>及一般供應商。</li>
+              <li><strong>股東 (Shareholders)：</strong>清還上述所有債項後若有剩餘資金，股東才可取回資本。因此<strong>債券持有人取回資本的優先次序高於股東</strong>。</li>
+            </ol>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation] 5-Tier Liquidation Priority Order:</strong></p>
+            <ol class="list-decimal pl-5 space-y-1 text-slate-700">
+              <li><strong>Secured creditors</strong> (e.g., banks holding mortgages)</li>
+              <li><strong>Liquidator</strong> (fees for handling liquidation)</li>
+              <li><strong>The government and employees</strong> (unpaid taxes and wages)</li>
+              <li><strong>Unsecured creditors</strong> (e.g., <strong>bondholders</strong> and general suppliers)</li>
+              <li><strong>Shareholders</strong> (paid last only if funds remain; hence <strong>bondholders have higher priority than shareholders</strong>).</li>
+            </ol>
+          </div>
+        `
+      },
+      {
+        id: "L3Q2",
+        level: 2,
+        type: "dnd",
+        typeLabel: "公司角度優缺點對比 | Company Perspective",
+        refTag: "參考例子：6.2 從有限公司／現有股東角度比較發行股票與債券 | Ref: Sec 6.2 Issuing Shares vs Bonds (Company Perspective)",
+        points: 20,
+        title: "【從有限公司／現有股東角度】發行股票 vs 發行債券 | Issuing Shares vs. Bonds (Company Perspective)",
+        prompt: `
+          <p>當一間公眾有限公司需要集資擴充業務時，從<strong>公司及現有股東的角度</strong>比較「發行股票」與「發行債券」的優缺點。請將下列 6 項中英對照論點拖放到正確的集資方式中：</p>
+          <p class="text-slate-600 text-xs sm:text-sm">When a public limited company raises capital for expansion, compare <strong>issuing shares</strong> vs. <strong>issuing bonds</strong> from the <strong>perspective of the company and existing shareholders</strong>. Drag each bilingual card to the correct method:</p>
+        `,
+        buckets: [
+          { id: "issue_shares", label: "公司發行股票 | Issuing Shares" },
+          { id: "issue_bonds", label: "公司發行債券 | Issuing Bonds" }
+        ],
+        items: [
+          { id: "c1", text: "沒有固定的利息負擔（公司虧損時毋須派發股息）| No fixed interest burden (no obligation to pay dividends when making losses)", target: "issue_shares" },
+          { id: "c2", text: "沒有贖回義務（毋須在到期日向股東償還本金）| No redemption obligation (no need to repay principal to shareholders at maturity)", target: "issue_shares" },
+          { id: "c3", text: "會削弱現有股東對公司的控制權，並增加公司被收購的風險 | Dilutes existing shareholders' control and increases the risk of takeover", target: "issue_shares" },
+          { id: "c4", text: "不會削弱現有股東的控制權（債券持有人在股東大會沒有投票權）| Does not dilute existing shareholders' control (bondholders have no voting rights)", target: "issue_bonds" },
+          { id: "c5", text: "無論公司是否賺取利潤，都必須定期支付固定利息及在到期日贖回債券 | Must pay fixed interest regularly regardless of profit and redeem bonds at maturity", target: "issue_bonds" },
+          { id: "c6", text: "負債比率上升，會削弱公司日後獲取新的銀行貸款的能力 | Higher debt ratio weakens the company's ability to obtain new bank loans in the future", target: "issue_bonds" }
+        ],
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】從有限公司／現有股東角度比較發行股票與發行債券：</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>發行股票：</strong>優點是<strong>沒有利息負擔</strong>、<strong>沒有贖回義務</strong>及<strong>提高獲取新銀行貸款的能力</strong>；缺點是新股東有投票權，<strong>削弱現有股東的控制權</strong>並<strong>增加被收購風險</strong>。</li>
+              <li><strong>發行債券：</strong>優點是債券持有人沒有投票權，<strong>不會削弱現有股東的控制權</strong>；缺點是<strong>有固定利息負擔</strong>（不論賺蝕均須付息）、<strong>有贖回義務</strong>（到期還本），以及<strong>削弱獲取新銀行貸款的能力</strong>。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation] Issuing Shares vs. Bonds (Company / Existing Shareholders' Perspective):</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Issuing Shares:</strong> Pros: no interest burden, no redemption obligation, enhances ability to obtain new bank loans. Cons: dilutes existing shareholders' control and increases takeover risk.</li>
+              <li><strong>Issuing Bonds:</strong> Pros: does not dilute existing shareholders' control (no voting rights). Cons: fixed interest burden regardless of profit, redemption obligation at maturity, and weakens ability to obtain new bank loans.</li>
+            </ul>
+          </div>
+        `
+      },
+      {
+        id: "L3Q3",
+        level: 2,
+        type: "dnd",
+        typeLabel: "小投資者角度優缺點對比 | Small Investor Perspective",
+        refTag: "參考例子：6.2 從小投資者角度比較購買股票與債券 | Ref: Sec 6.2 Buying Shares vs Bonds (Small Investor Perspective)",
+        points: 20,
+        title: "【從小投資者角度】購買股票 vs 購買債券 | Buying Shares vs. Bonds (Small Investor Perspective)",
+        prompt: `
+          <p>從<strong>小投資者（個人投資者）的角度</strong>比較「購買股票」與「購買債券」的優缺點。請將下列 6 項中英對照論點拖放到正確的投資工具中：</p>
+          <p class="text-slate-600 text-xs sm:text-sm">Compare <strong>buying shares</strong> vs. <strong>buying bonds</strong> from the <strong>perspective of a small (individual) investor</strong>. Drag each bilingual card to the correct investment:</p>
+        `,
+        buckets: [
+          { id: "buy_shares", label: "小投資者購買股票 | Buying Shares" },
+          { id: "buy_bonds", label: "小投資者購買債券 | Buying Bonds" }
+        ],
+        items: [
+          { id: "inv1", text: "股息回報不固定，但若公司盈利理想，潛在回報（股息及資本增值）可能較高 | Variable dividend returns, but higher potential returns (dividends & capital gain) if profits are strong", target: "buy_shares" },
+          { id: "inv2", text: "投資風險較高（公司虧損時可能沒有股息，且清盤時最後才取回資本）| Higher investment risk (may receive no dividends during losses; paid last upon liquidation)", target: "buy_shares" },
+          { id: "inv3", text: "成為公司東主，可在股東大會上行使投票權，影響公司決策 | Becomes an owner with voting rights at the shareholders' meeting to influence decisions", target: "buy_shares" },
+          { id: "inv4", text: "獲得定期的固定利息，且在到期日可取回本金，投資風險較低 | Receives regular fixed interest and recovers principal at maturity; lower investment risk", target: "buy_bonds" },
+          { id: "inv5", text: "只是公司的債權人，在股東大會上沒有投票權，不能影響公司決策 | Merely a creditor with no voting rights at the shareholders' meeting; cannot influence decisions", target: "buy_bonds" },
+          { id: "inv6", text: "若公司清盤，取回資本的優先次序高於股東（屬無抵押債權人）| Higher priority than shareholders in recovering capital upon liquidation (as an unsecured creditor)", target: "buy_bonds" }
+        ],
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】從小投資者角度比較購買股票與購買債券：</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>購買股票：</strong>優點是盈利理想時可獲較高<strong>股息</strong>及<strong>資本增值</strong>，且在股東大會擁有<strong>投票權</strong>；缺點是回報不固定（虧損時可能沒有股息，股價下跌引致資本損失）及<strong>投資風險較高</strong>（清盤時最後取回資本）。</li>
+              <li><strong>購買債券：</strong>優點是獲<strong>定期固定利息</strong>、到期取回本金、<strong>投資風險較低</strong>且清盤時<strong>取回資本優先次序高於股東</strong>；缺點是回報上限固定（不能分享額外盈利）及<strong>沒有投票權</strong>。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation] Buying Shares vs. Bonds (Small Investor Perspective):</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Buying Shares:</strong> Pros: higher potential dividends & capital gains when profitable, plus voting rights at shareholders' meetings. Cons: variable returns (risk of zero dividends or capital loss) and higher risk (last priority in liquidation).</li>
+              <li><strong>Buying Bonds:</strong> Pros: regular fixed interest, principal repaid at maturity, lower risk, and higher liquidation priority than shareholders. Cons: capped returns and no voting rights.</li>
+            </ul>
+          </div>
+        `
+      },
+      {
+        id: "L3Q4",
+        level: 2,
+        type: "mcq",
+        typeLabel: "回報與到期日辨析 | Return & Maturity",
+        refTag: "參考例子：6.2 股東與債券持有人回報比較 | Ref: Sec 6.2 Returns to Shareholders vs Bondholders",
+        points: 20,
+        title: "公司虧損時對股東與債券持有人的支付義務 | Payment Obligations During Company Losses",
+        prompt: `
+          <p><strong>情境：</strong>某上市公司在剛過去的財政年度錄得嚴重虧損。下列哪項關於該公司向「股東」及「債券持有人」支付回報的陳述是<strong>正確</strong>的？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> A listed company recorded severe losses in the past financial year. Which statement regarding the company's payments to its "shareholders" and "bondholders" is <strong>correct</strong>?</p>
+        `,
+        options: [
+          { id: "A", text: "由於公司錄得虧損，該公司今年合法地毋須向債券持有人支付固定利息。| Because the company suffered a loss, it is legally exempt from paying fixed interest to bondholders this year." },
+          { id: "B", text: "無論公司是否賺取利潤，都必須向股東派發固定比率的股息。| Regardless of whether the company makes a profit, it must pay a fixed rate of dividends to shareholders." },
+          { id: "C", text: "即使公司錄得虧損，仍須向債券持有人支付固定利息；但公司可以決定不向股東派發股息。| Even when recording a loss, the company must still pay fixed interest to bondholders; however, it may decide not to declare dividends to shareholders." },
+          { id: "D", text: "債券沒有到期日，因此該公司永遠毋須向債券持有人償還本金。| Bonds have no maturity date, so the company never has to repay principal to bondholders." }
+        ],
+        correct: "C",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong><strong>債券</strong>的回報是<strong>固定利息</strong>（無論公司是否賺取利潤都必須支付），且<strong>有到期日</strong>（必須在到期日償還本金）；<strong>股票</strong>的回報是<strong>股息</strong>（不固定，視乎公司盈利及董事局決定，虧損時可不派息），且<strong>沒有到期日</strong>。</p>
+            <hr class="border-slate-200"/>
+            <p class="<strong>[English Explanation]</strong> text-slate-700"><strong>Bonds</strong> pay <strong>fixed interest</strong> (mandatory regardless of profit or loss) and have a <strong>maturity date</strong> (principal must be repaid at maturity). <strong>Shares</strong> pay <strong>dividends</strong> (variable depending on profits and Board decisions; zero dividends may be paid during losses) and have <strong>no maturity date</strong>.</p>
+          </div>
+        `
+      },
+      {
+        id: "L3Q5",
+        level: 2,
+        type: "mcq",
+        typeLabel: "其他集資方法 | Other Financing Methods",
+        refTag: "參考例子：專家錦囊 6.3 保留利潤與銀行借款 | Ref: Expert Tip 6.3 Retained Profits vs Bank Loans",
+        points: 20,
+        title: "保留利潤 vs 向銀行借款 | Retained Profits vs. Bank Loans",
+        prompt: `
+          <p>除了發行股票和債券外，有限公司亦可使用「保留利潤（留存利潤）」或「向銀行借款」集資。下列哪項比較<strong>完全正確</strong>？</p>
+          <p class="text-slate-600 text-xs sm:text-sm">Besides issuing shares and bonds, a limited company can raise funds using "retained profits" or "bank loans". Which comparison is <strong>completely correct</strong>?</p>
+        `,
+        options: [
+          { id: "A", text: "使用保留利潤集資會增加公司的利息負擔，並削弱現有股東的控制權。| Using retained profits increases the company's interest burden and dilutes existing shareholders' control." },
+          { id: "B", text: "使用保留利潤集資沒有利息負擔及贖回義務，亦不會削弱現有股東的控制權，但金額受限於公司過往累積的利潤。| Using retained profits involves no interest burden, no redemption obligation, and no dilution of control, though the amount is limited by past accumulated profits." },
+          { id: "C", text: "向銀行借款沒有償還本金和利息的義務，且無需提供任何抵押品。| Bank loans carry no obligation to repay principal or interest and require no collateral." },
+          { id: "D", text: "向銀行借款會使銀行自動成為公司的最大股東並取得股東大會投票權。| Taking a bank loan automatically makes the bank the largest shareholder with voting rights at general meetings." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong><strong>保留利潤 (Retained Profits)</strong> 是公司保留未派發給股東的利潤作再投資：沒有利息負擔、沒有贖回義務、不削弱控制權，但受限於過往累積利潤。<strong>向銀行借款 (Bank Loans)</strong> 不削弱控制權，但須支付利息及償還本金，並通常需提供抵押品。</p>
+            <hr class="border-slate-200"/>
+            <p class="<strong>[English Explanation]</strong> text-slate-700"><strong>Retained profits</strong> are undistributed profits reinvested by the firm: zero interest burden, no redemption obligation, and no dilution of control, but capped by past accumulated profits. <strong>Bank loans</strong> do not dilute control, but require interest/principal repayments and usually collateral.</p>
+          </div>
+        `
+      },
+
+      // ==================== LEVEL 4: 公有制 ====================
+      {
+        id: "L4Q1",
+        level: 3,
+        type: "dnd",
+        typeLabel: "三分類辨析題 | 3-Bucket Classification",
+        refTag: "參考例子：6.3 兩類政府部門與公營公司分類 | Ref: Sec 6.3 Two Types of Gov. Depts vs Public Corporations",
+        points: 20,
+        title: "嚴格區分：「直接撥款政府部門」、「營運基金政府部門」與「公營公司」| Distinguishing the 3 Types of Public Enterprises",
+        prompt: `
+          <p><strong>重點區分：</strong><strong>以營運基金運作的政府部門</strong>和<strong>由政府直接提供資金的政府部門</strong>要分開，不能混為一談，兩者亦與<strong>公營公司</strong>不同！請將下列 9 個香港公營機構準確拖放到三個所屬類別中：</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Key Distinction:</strong> <strong>Government departments operating on a trading fund basis</strong> must be separated from <strong>government departments directly funded by the government</strong>, and both differ from <strong>public corporations</strong>! Drag each of the 9 Hong Kong public institutions into its exact category:</p>
+        `,
+        buckets: [
+          { id: "dept_direct", label: "① 直接撥款政府部門 | Directly Funded Gov. Dept." },
+          { id: "dept_trading", label: "② 營運基金政府部門 | Trading Fund Gov. Dept." },
+          { id: "pub_corp", label: "③ 公營公司 | Public Corporation" }
+        ],
+        items: [
+          { id: "g1", text: "水務署 | Water Supplies Department", target: "dept_direct" },
+          { id: "g2", text: "房屋署 | Housing Department", target: "dept_direct" },
+          { id: "g3", text: "消防處 / 香港警務處 / 衞生署 | Fire Services Dept. / HK Police Force / Dept. of Health", target: "dept_direct" },
+          { id: "g4", text: "機電工程署 | Electrical and Mechanical Services Department (EMSD)", target: "dept_trading" },
+          { id: "g5", text: "土地註冊處 | Land Registry", target: "dept_trading" },
+          { id: "g6", text: "香港郵政 | Hongkong Post", target: "dept_trading" },
+          { id: "g7", text: "醫院管理局 | Hospital Authority", target: "pub_corp" },
+          { id: "g8", text: "香港機場管理局 | Airport Authority Hong Kong", target: "pub_corp" },
+          { id: "g9", text: "海洋公園公司 | Ocean Park Corporation", target: "pub_corp" }
+        ],
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】公營企業的三類機構（嚴格區分）：</strong></p>
+            <ol class="list-decimal pl-5 space-y-1">
+              <li><strong>由政府直接提供資金的政府部門：</strong>屬於政府架構內，資金直接來自政府預算撥款，僱員大多數是公務員（如<strong>水務署、房屋署、消防處、香港警務處、衞生署</strong>）。</li>
+              <li><strong>以營運基金運作的政府部門：</strong><strong>同樣屬於政府架構內，由政府官員直接管理和營運，僱員大多數是公務員</strong>，但以營運基金形式自負盈虧運作（如<strong>機電工程署、土地註冊處、香港郵政</strong>）。</li>
+              <li><strong>公營公司 (Public Corporation)：</strong>根據法例成立，<strong>不屬於政府架構</strong>，由政府任命的獨立董事局間接管理，<strong>僱員大多數不是公務員</strong>，財政獨立於政府（如<strong>醫院管理局、香港機場管理局、海洋公園公司</strong>）。</li>
+            </ol>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation] Three Categories of Public Enterprises:</strong></p>
+            <ol class="list-decimal pl-5 space-y-1 text-slate-700">
+              <li><strong>Government departments directly funded by the government:</strong> Part of the government structure, funded directly by government budget, mostly civil servants (e.g., Water Supplies Dept., Housing Dept., Fire Services Dept., HK Police Force, Dept. of Health).</li>
+              <li><strong>Government departments operating on a trading fund basis:</strong> <strong>Still part of the government structure, directly managed by government officials, and mostly staffed by civil servants</strong>, but financially self-financing via trading funds (e.g., EMSD, Land Registry, Hongkong Post).</li>
+              <li><strong>Public Corporations:</strong> Established by statute, <strong>not part of the government structure</strong>, managed by an independent board appointed by the government, <strong>mostly non-civil servants</strong>, and financially independent (e.g., Hospital Authority, Airport Authority HK, Ocean Park Corp.).</li>
+            </ol>
+          </div>
+        `
+      },
+      {
+        id: "L4Q2",
+        level: 3,
+        type: "mcq",
+        typeLabel: "制度對比題 | Institutional Comparison",
+        refTag: "參考例子：6.3 營運基金政府部門 vs 公營公司 | Ref: Sec 6.3 Trading Fund Gov. Dept vs Public Corporation",
+        points: 20,
+        title: "「以營運基金運作的政府部門」與「公營公司」的本質區別 | Trading Fund Dept. vs. Public Corporation",
+        prompt: `
+          <p>香港郵政（以營運基金運作的政府部門）與香港機場管理局（公營公司）均以自負盈虧及商業原則運作。兩者在組織架構與人事上有甚麼<strong>根本分別</strong>？</p>
+          <p class="text-slate-600 text-xs sm:text-sm">Both Hongkong Post (a government department operating on a trading fund basis) and the Airport Authority Hong Kong (a public corporation) operate on self-financing commercial principles. What is their <strong>fundamental difference</strong> in organizational structure and staffing?</p>
+        `,
+        options: [
+          { id: "A", text: "香港郵政不屬於政府架構；香港機場管理局屬於政府架構內的部門。| Hongkong Post is not part of the government structure; Airport Authority HK is a department within the government." },
+          { id: "B", text: "香港郵政屬於政府架構內的單位，由政府官員直接管理，僱員大多數是公務員；香港機場管理局不屬於政府架構，由政府任命的董事局管理，僱員大多數不是公務員。| Hongkong Post is a unit within the government structure directly managed by government officials with mostly civil servants; Airport Authority HK is not part of the government structure, is managed by a government-appointed board, and employs mostly non-civil servants." },
+          { id: "C", text: "香港郵政的僱員全部不是公務員；香港機場管理局的僱員全部是公務員。| Hongkong Post employs zero civil servants; Airport Authority HK employs only civil servants." },
+          { id: "D", text: "兩者均由私營股東擁有，並在香港交易所上市買賣股票。| Both are owned by private shareholders and listed on the Hong Kong Stock Exchange." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong><strong>以營運基金運作的政府部門（如香港郵政）</strong>雖然在財政上自負盈虧，但它<strong>仍然屬於政府架構內的一個單位，由政府官員直接管理和營運，僱員大多數是公務員</strong>。相反，<strong>公營公司（如香港機場管理局）</strong>根據法例成立，<strong>不屬於政府架構的一部分，由政府任命的獨立董事局間接管理，僱員大多數不是公務員</strong>。</p>
+            <hr class="border-slate-200"/>
+            <p class="<strong>[English Explanation]</strong> text-slate-700">Although a <strong>trading fund government department (like Hongkong Post)</strong> is financially self-financing, it <strong>remains a unit inside the government structure, directly managed by government officials, and mostly staffed by civil servants</strong>. By contrast, a <strong>public corporation (like Airport Authority HK)</strong> is established by statute, is <strong>not part of the government structure</strong>, is managed by an independent board, and employs <strong>mostly non-civil servants</strong>.</p>
+          </div>
+        `
+      },
+      {
+        id: "L4Q3",
+        level: 3,
+        type: "dnd",
+        typeLabel: "優缺點對比題 | Public vs Private Provision",
+        refTag: "參考例子：6.3 公有制與私有制提供公共服務對比 | Ref: Sec 6.3 Public vs Private Provision of Public Services",
+        points: 20,
+        title: "比較「公有制」與「私有制」提供公共服務的優缺點 | Public vs. Private Provision of Public Services",
+        prompt: `
+          <p>公共服務（例如醫療、房屋、交通）可由公營企業或私營企業提供。請將下列 6 項中英對照優點拖放到正確的擁有權制度中：</p>
+          <p class="text-slate-600 text-xs sm:text-sm">Public services (such as healthcare, housing, and transport) can be provided by public or private enterprises. Drag each bilingual advantage into the correct ownership system:</p>
+        `,
+        buckets: [
+          { id: "public_prov", label: "公有制提供公共服務的優點 | Advantages of Public Provision" },
+          { id: "private_prov", label: "私有制提供公共服務的優點 | Advantages of Private Provision" }
+        ],
+        items: [
+          { id: "pp1", text: "較容易獲取公眾和政府的機密資訊以配合政策規劃 | Easier access to public and government information for policy coordination", target: "public_prov" },
+          { id: "pp2", text: "能夠以低廉的價格甚至免費提供服務，照顧低收入人士需要 | Can provide services at low prices or free of charge to help low-income groups", target: "public_prov" },
+          { id: "pp3", text: "擁有政府提供的穩定資金來源，較能承擔龐大或長期虧損的基建項目 | Stable funding from the government to undertake large or loss-making infrastructure", target: "public_prov" },
+          { id: "pp4", text: "由於以賺取利潤為目標，有較大誘因降低生產成本，運營效率較高 | Profit-driven incentive to cut production costs leads to higher operational efficiency", target: "private_prov" },
+          { id: "pp5", text: "決策的靈活性較高（毋須經過繁複的政府行政審批程序）| Higher decision-making flexibility without lengthy bureaucratic approval procedures", target: "private_prov" },
+          { id: "pp6", text: "面對市場競爭，有較大動力提高物品和服務的質素 | Market competition creates stronger motivation to improve the quality of goods and services", target: "private_prov" }
+        ],
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>公有制的優點：</strong>較容易獲取公眾和政府的資訊、以低廉的價格或免費提供服務、擁有穩定的資金來源（政府支持）。</li>
+              <li><strong>私有制的優點：</strong>以賺取利潤為目標，運營效率較高、決策的靈活性較高、提高物品和服務質素的動力較大。</li>
+            </ul>
+            <hr class="border-slate-200"/>
+            <p><strong>[English Explanation]</strong></p>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>Advantages of Public Ownership:</strong> Easier access to public and government information, provision of services at low prices or free of charge, and stable funding sources.</li>
+              <li><strong>Advantages of Private Ownership:</strong> Higher operational efficiency driven by profit incentives, higher decision-making flexibility, and stronger motivation to improve service quality.</li>
+            </ul>
+          </div>
+        `
+      },
+      {
+        id: "L4Q4",
+        level: 3,
+        type: "mcq",
+        typeLabel: "公私營轉制案例 | Privatization of Public Facilities",
+        refTag: "參考例子：生活實例 6.2 房委會向領展出售設施 | Ref: Real-life Example 6.2 Housing Authority & Link REIT",
+        points: 20,
+        title: "公營機構向私營企業出售公共屋邨商場與停車場 | Selling Public Estate Facilities to a Private Firm",
+        prompt: `
+          <p><strong>情境：</strong>某公營房屋機構因面對財政困難，決定將旗下公共屋邨的商場和停車場出售予一間私營房地產投資企業。下列哪項<strong>最準確</strong>概括了出售資產的原因及私營化後對屋邨低收入住戶的影響？</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> Facing financial difficulties, a public housing authority sells its public housing estate shopping malls and car parks to a private real estate investment enterprise. Which option <strong>most accurately</strong> summarizes the reason for the sale and its impact on low-income estate residents?</p>
+        `,
+        options: [
+          { id: "A", text: "該公營機構當時錄得巨額財政盈餘；私營企業接管後大幅減租以照顧低收入住戶。| The public body had a huge fiscal surplus; the private firm slashed rents to help low-income residents." },
+          { id: "B", text: "該公營機構當時面對財政困難（影響屋邨保養和衞生）；私營企業以賺取利潤為目標，大幅提高商鋪和車位租金，商戶隨之加價，加重了低收入住戶的經濟負擔。| The public body faced financial difficulties affecting estate maintenance and hygiene; the profit-driven private firm sharply raised shop and parking rents, prompting tenants to raise prices and increasing the financial burden on low-income residents." },
+          { id: "C", text: "該私營企業屬於以營運基金運作的政府部門，所有租金收入直接撥歸政府庫房。| The private firm is a trading fund government department whose rental income goes straight into the government treasury." },
+          { id: "D", text: "出售資產後，公共屋邨商場改由消防處及水務署直接管理。| After the sale, the estate malls were directly managed by the Fire Services and Water Supplies Departments." }
+        ],
+        correct: "B",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong>公營房屋機構當時面對<strong>財政困難</strong>（資金不足影響屋邨保養和衞生），遂透過出售商場及停車場套現。由於接管的私營企業以<strong>賺取利潤</strong>為目標，翻新商場後大幅<strong>提高商鋪和車位租金</strong>，商戶為應付租金而<strong>提高商品和服務價格</strong>，結果加重了低收入住戶的經濟負擔。</p>
+            <hr class="border-slate-200"/>
+            <p class="<strong>[English Explanation]</strong> text-slate-700">Facing <strong>financial difficulties</strong> affecting estate maintenance and hygiene, the public housing body sold its malls and car parks to raise funds. Because the acquiring private enterprise is <strong>profit-driven</strong>, it renovated the malls and sharply raised shop and parking rents; tenants passed these costs onto shoppers via higher prices, increasing the financial burden on low-income residents.</p>
+          </div>
+        `
+      },
+      {
+        id: "L4Q5",
+        level: 3,
+        type: "mcq",
+        typeLabel: "綜合機構辨析 | Institutional Identification",
+        refTag: "參考例子：6.3 醫院管理局 vs 衞生署對比 | Ref: Sec 6.3 Hospital Authority vs Dept. of Health",
+        points: 20,
+        title: "公營企業綜合辨析：政府部門 vs 公營公司 | Government Department vs. Public Corporation",
+        prompt: `
+          <p><strong>情境：</strong>某機構提供公共醫療服務，它根據香港法例成立，<strong>不屬於政府架構的一部分</strong>，由政府任命的董事局管理，財政上獨立於政府，其醫生及護士大多數<strong>不是公務員</strong>，並按商業原則（例如成本極小化）提供公共服務。該機構是：</p>
+          <p class="text-slate-600 text-xs sm:text-sm"><strong>Scenario:</strong> An organization provides public healthcare services. It is established by Hong Kong statute, is <strong>not part of the government structure</strong>, is managed by a government-appointed board, is financially independent from the government, employs <strong>mostly non-civil servant</strong> doctors and nurses, and operates on commercial principles (such as cost minimization). This organization is:</p>
+        `,
+        options: [
+          { id: "A", text: "衞生署（由政府直接提供資金的政府部門）| Department of Health (a directly funded government department)" },
+          { id: "B", text: "香港郵政（以營運基金運作的政府部門）| Hongkong Post (a government department operating on a trading fund basis)" },
+          { id: "C", text: "醫院管理局（公營公司）| Hospital Authority (a public corporation)" },
+          { id: "D", text: "私家醫院（公眾有限公司）| A private hospital (a public limited company)" }
+        ],
+        correct: "C",
+        explanation: `
+          <div class="space-y-2">
+            <p><strong>【中文解析】</strong><strong>醫院管理局 (Hospital Authority)</strong> 屬於<strong>公營公司</strong>：根據法例成立、不屬於政府架構、由政府任命的董事局管理、財政獨立、僱員大多數不是公務員，並按商業原則提供公共服務。而<strong>衞生署</strong>則屬於由政府直接提供資金的政府部門。</p>
+            <hr class="border-slate-200"/>
+            <p class="<strong>[English Explanation]</strong> text-slate-700">The <strong>Hospital Authority</strong> is a <strong>public corporation</strong>: established by statute, outside the government structure, managed by a government-appointed board, financially independent, staffed mostly by non-civil servants, and providing public services on commercial principles. By contrast, the <strong>Department of Health</strong> is a directly funded government department.</p>
+          </div>
+        `
+      }
+    ];
+
+    // =========================================================================
+    // 2. APPLICATION STATE & EMPTY DEFAULT LEADERBOARD (無任何預設假名)
+    // =========================================================================
+    const CLASS_ID = "form4-economics";
+    const CLASS_LABEL = "中四中文經濟 | Form 4 Economics";
+    const TEACHER_UID = "yNTHslsR7QYILL72UrewYSMdugf2";
+    const firebaseConfig = {
+      apiKey: "AIzaSyAbgEDCTgmDfpgfiZ_KIg1m0umkxBAmXrs",
+      authDomain: "econf4quiz.firebaseapp.com",
+      projectId: "econf4quiz",
+      storageBucket: "econf4quiz.firebasestorage.app",
+      messagingSenderId: "265954042282",
+      appId: "1:265954042282:web:03ff7787c3715d39ca4bd3"
+    };
+
+    let firebaseApp, auth, db, firebaseUser = null, leaderboardUnsubscribe = null;
+    let firebaseReady = false;
+
+    let state = {
+      studentName: "經濟學習者",
+      classId: CLASS_ID,
+      activeTab: "quest",
+      currentLevel: 0,
+      currentQuestionIdxInLevel: 0,
+      levelScores: [0, 0, 0, 0],
+      answeredQuestions: {},
+      dndPlacements: {},
+      selectedMcq: {},
+      secondsRemaining: 900,
+      timerInterval: null,
+      completionModalShown: false,
+      mindMapBranch: "overview",
+      leaderboardEntries: []
+    };
+
+    function initializeFirebase() {
+      try {
+        firebaseApp = firebase.initializeApp(firebaseConfig);
+        auth = firebase.auth();
+        db = firebase.firestore();
+        auth.onAuthStateChanged(async user => {
+          firebaseUser = user;
+          firebaseReady = !!user;
+          updateTeacherControls();
+          if (user) {
+            subscribeToLeaderboard();
+          } else if (!auth.currentUser) {
+            try { await auth.signInAnonymously(); }
+            catch (err) { console.error(err); showToast("Firebase 登入失敗，請稍後重試。| Firebase sign-in failed."); }
+          }
+        });
+      } catch (err) {
+        console.error("Firebase initialization failed", err);
+        showToast("無法連接 Firebase，請檢查網絡及 Firebase 設定。| Firebase connection failed.");
+      }
+    }
+
+    function subscribeToLeaderboard() {
+      if (leaderboardUnsubscribe) leaderboardUnsubscribe();
+      leaderboardUnsubscribe = db.collection("leaderboard")
+        .where("classId", "==", CLASS_ID)
+        .onSnapshot(snapshot => {
+          state.leaderboardEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), name: doc.data().nickname }));
+          if (state.activeTab === "leaderboard") renderLeaderboards();
+        }, err => {
+          console.error("Leaderboard subscription failed", err);
+          showToast("讀取排行榜失敗，請檢查 Firestore Rules。| Could not load leaderboard.");
+        });
+    }
+
+    async function syncCurrentStudentToLeaderboard() {
+      const answeredCount = Object.keys(state.answeredQuestions).length;
+      if (answeredCount === 0 || !firebaseUser || firebaseUser.isAnonymous === false) return;
+      const nickname = (state.studentName || "經濟學習者").trim().slice(0, 20);
+      const record = {
+        uid: firebaseUser.uid,
+        classId: CLASS_ID,
+        nickname,
+        totalScore: state.levelScores.reduce((a, b) => a + b, 0),
+        levelScores: [...state.levelScores],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      try {
+        await db.collection("leaderboard").doc(firebaseUser.uid).set(record);
+      } catch (err) {
+        console.error("Unable to save score", err);
+        showToast("成績未能同步，請稍後再試。| Score could not be synced.");
+      }
+    }
+
+    function submitScoreToLeaderboard() {
+      const answeredCount = Object.keys(state.answeredQuestions).length;
+      if (answeredCount === 0) {
+        showToast("請先在闖關挑戰回答至少一題，再提交成績上榜！| Please answer at least 1 question first!");
+        return;
+      }
+      syncCurrentStudentToLeaderboard().then(() => {
+        renderLeaderboards();
+        showToast("✅ 你的成績已提交至班別雲端排行榜！| Your score was submitted to the class leaderboard!");
+      });
+    }
+
+    // =========================================================================
+    // 3. TIMER LOGIC (Automatically pauses on Mind Map & Leaderboard)
+    // =========================================================================
+    function startTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+      state.timerInterval = setInterval(() => {
+        const totalAnswered = Object.keys(state.answeredQuestions).length;
+        if (state.activeTab === "quest" && totalAnswered < QUESTIONS.length && state.secondsRemaining > 0) {
+          state.secondsRemaining--;
+          updateTimerUI();
+        }
+      }, 1000);
+    }
+
+    function updateTimerUI() {
+      const badge = document.getElementById("timer-badge");
+      const icon = document.getElementById("timer-icon");
+      const text = document.getElementById("timer-text");
+
+      const mins = Math.floor(state.secondsRemaining / 60);
+      const secs = state.secondsRemaining % 60;
+      const formatted = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+
+      if (state.activeTab === "mindmap") {
+        badge.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs sm:text-sm font-bold";
+        icon.textContent = "⏸️";
+        text.textContent = `知識腦圖·不計時 | Paused (${formatted})`;
+      } else if (state.activeTab === "leaderboard") {
+        badge.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold";
+        icon.textContent = "⏸️";
+        text.textContent = `排行榜·暫停 | Paused (${formatted})`;
+      } else {
+        badge.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs sm:text-sm font-bold";
+        icon.textContent = "⏱️";
+        text.textContent = `計時中 | Active ${formatted}`;
+      }
+    }
+
+    // =========================================================================
+    // 4. TAB NAVIGATION
+    // =========================================================================
+    function switchTab(tabName) {
+      state.activeTab = tabName;
+
+      ["quest", "mindmap", "leaderboard"].forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        const view = document.getElementById(`view-${t}`);
+        if (t === tabName) {
+          btn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all bg-white text-blue-700 shadow-sm flex items-center gap-1.5";
+          view.classList.remove("hidden");
+        } else {
+          btn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
+          view.classList.add("hidden");
+        }
+      });
+
+      updateTimerUI();
+
+      if (tabName === "mindmap") {
+        renderMindMap();
+      } else if (tabName === "leaderboard") {
+        renderLeaderboards();
+      } else {
+        renderLevelCards();
+        renderCurrentQuestion();
+      }
+    }
+
+    // =========================================================================
+    // 5. RENDER LEVEL SELECTOR CARDS
+    // =========================================================================
+    function renderLevelCards() {
+      const container = document.getElementById("level-cards-container");
+      container.innerHTML = LEVELS.map((lvl, idx) => {
+        const levelQs = QUESTIONS.filter(q => q.level === idx);
+        const answeredCount = levelQs.filter(q => state.answeredQuestions[q.id]).length;
+        const isActive = state.currentLevel === idx;
+        const isCompleted = answeredCount === levelQs.length;
+
+        return `
+          <button onclick="selectLevel(${idx})"
+            class="p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between ${
+              isActive
+                ? "border-blue-600 bg-blue-50/70 shadow-sm"
+                : "border-slate-200 bg-white hover:border-blue-300"
+            }">
+            <div class="flex items-center justify-between w-full gap-1">
+              <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-full ${
+                isCompleted
+                  ? "bg-emerald-100 text-emerald-800"
+                  : isActive
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 text-slate-600"
+              }">
+                ${lvl.shortTitle} ${isCompleted ? "✓ 完成 | Done" : ""}
+              </span>
+              <span class="text-xs font-extrabold text-amber-700">
+                ${state.levelScores[idx]} / 100 分
+              </span>
+            </div>
+            <div class="mt-2">
+              <div class="font-extrabold text-xs sm:text-sm text-slate-900">${lvl.title}</div>
+              <div class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">${lvl.subtitle}</div>
+            </div>
+            <div class="mt-3 w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-blue-600 h-full transition-all" style="width: ${(answeredCount / levelQs.length) * 100}%"></div>
+            </div>
+          </button>
+        `;
+      }).join("");
+
+      // Show Core Legal Definitions Banner on Level 1 & Level 2
+      const legalBanner = document.getElementById("core-legal-banner");
+      if (state.currentLevel === 0 || state.currentLevel === 1) {
+        legalBanner.classList.remove("hidden");
+      } else {
+        legalBanner.classList.add("hidden");
+      }
+    }
+
+    function selectLevel(levelIdx) {
+      state.currentLevel = levelIdx;
+      const levelQs = QUESTIONS.filter(q => q.level === levelIdx);
+      const firstUnanswered = levelQs.findIndex(q => !state.answeredQuestions[q.id]);
+      state.currentQuestionIdxInLevel = firstUnanswered !== -1 ? firstUnanswered : 0;
+      renderLevelCards();
+      renderCurrentQuestion();
+    }
+
+    // =========================================================================
+    // 6. RENDER & HANDLE CURRENT QUESTION (MCQ & DRAG-AND-DROP)
+    // =========================================================================
+    function getCurrentQuestion() {
+      const levelQs = QUESTIONS.filter(q => q.level === state.currentLevel);
+      return levelQs[state.currentQuestionIdxInLevel];
+    }
+
+    function renderCurrentQuestion() {
+      const q = getCurrentQuestion();
+      const levelObj = LEVELS[state.currentLevel];
+      const existingResult = state.answeredQuestions[q.id];
+
+      document.getElementById("q-level-badge").textContent = `${levelObj.shortTitle}：${levelObj.title}`;
+      document.getElementById("q-type-badge").textContent = q.typeLabel;
+
+      const refBadge = document.getElementById("q-ref-badge");
+      if (q.refTag) {
+        refBadge.textContent = q.refTag;
+        refBadge.classList.remove("hidden");
+      } else {
+        refBadge.classList.add("hidden");
+      }
+
+      document.getElementById("q-title").textContent = `第 ${state.currentQuestionIdxInLevel + 1} 題 (Q${state.currentQuestionIdxInLevel + 1})：${q.title}`;
+      document.getElementById("q-points").textContent = q.points;
+      document.getElementById("q-progress").textContent = `${state.currentQuestionIdxInLevel + 1} / 5`;
+      document.getElementById("q-prompt").innerHTML = q.prompt;
+
+      const interactiveArea = document.getElementById("q-interactive-area");
+
+      if (q.type === "mcq") {
+        const chosen = state.selectedMcq[q.id] || null;
+        interactiveArea.innerHTML = `
+          <div class="space-y-3">
+            ${q.options.map(opt => {
+              let cardClass = "border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/40";
+              let badgeClass = "bg-slate-100 text-slate-700";
+
+              if (existingResult) {
+                if (opt.id === q.correct) {
+                  cardClass = "border-emerald-500 bg-emerald-50 text-emerald-950";
+                  badgeClass = "bg-emerald-600 text-white";
+                } else if (opt.id === chosen && opt.id !== q.correct) {
+                  cardClass = "border-rose-500 bg-rose-50 text-rose-950";
+                  badgeClass = "bg-rose-600 text-white";
+                } else {
+                  cardClass = "border-slate-200 bg-slate-50 opacity-70";
+                }
+              } else if (chosen === opt.id) {
+                cardClass = "border-blue-600 bg-blue-50 ring-2 ring-blue-200";
+                badgeClass = "bg-blue-600 text-white";
+              }
+
+              return `
+                <button type="button" ${existingResult ? "disabled" : ""} onclick="selectMcqOption('${q.id}', '${opt.id}')"
+                  class="w-full p-4 rounded-xl border-2 text-left transition-all flex items-start gap-3 ${cardClass}">
+                  <span class="w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 mt-0.5 ${badgeClass}">
+                    ${opt.id}
+                  </span>
+                  <span class="text-sm sm:text-base font-medium leading-snug">${opt.text}</span>
+                </button>
+              `;
+            }).join("")}
+          </div>
+        `;
+      } else if (q.type === "dnd") {
+        if (!state.dndPlacements[q.id]) state.dndPlacements[q.id] = {};
+        const placements = state.dndPlacements[q.id];
+        const unplacedItems = q.items.filter(item => !placements[item.id]);
+
+        const gridCols = q.buckets.length === 5
+          ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-5"
+          : q.buckets.length === 3
+          ? "grid-cols-1 md:grid-cols-3"
+          : "grid-cols-1 md:grid-cols-2";
+
+        interactiveArea.innerHTML = `
+          <div class="space-y-5">
+            <!-- Unplaced Draggable Pool -->
+            <div class="p-4 rounded-xl bg-slate-100/80 border border-dashed border-slate-300">
+              <div class="text-xs font-bold text-slate-600 mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                <span>📦 待分類項目卡（拖放至下方類別框，或點擊項目後點擊目標框）| Items to Classify (Drag or Tap):</span>
+                <span class="text-slate-500">剩餘 Remaining: ${unplacedItems.length}</span>
+              </div>
+              <div class="flex flex-wrap gap-2 min-h-[44px]"
+                ondragover="event.preventDefault()"
+                ondrop="handleDropToPool(event, '${q.id}')">
+                ${unplacedItems.length === 0
+                  ? `<span class="text-xs text-slate-400 italic py-2">所有項目已放入分類框中，請檢查後按「提交答案」。| All items placed. Review and click "Submit Answer".</span>`
+                  : unplacedItems.map(item => `
+                    <div draggable="${!existingResult}"
+                      ondragstart="handleDragStart(event, '${item.id}')"
+                      onclick="handleChipTap('${q.id}', '${item.id}')"
+                      id="chip-${item.id}"
+                      class="draggable-chip px-3.5 py-2 rounded-xl bg-white border border-slate-300 shadow-sm text-xs sm:text-sm font-semibold text-slate-800 hover:border-blue-500">
+                      ${item.text}
+                    </div>
+                  `).join("")
+                }
+              </div>
+            </div>
+
+            <!-- Target Drop Buckets -->
+            <div class="grid ${gridCols} gap-3">
+              ${q.buckets.map(bucket => {
+                const itemsInBucket = q.items.filter(item => placements[item.id] === bucket.id);
+                return `
+                  <div class="drop-zone rounded-2xl border-2 border-slate-300 bg-slate-50/70 p-3.5 flex flex-col min-h-[175px]"
+                    ondragover="handleDragOver(event)"
+                    ondragleave="handleDragLeave(event)"
+                    ondrop="handleDropToBucket(event, '${q.id}', '${bucket.id}')"
+                    onclick="handleBucketTap('${q.id}', '${bucket.id}')">
+                    <div class="text-xs sm:text-sm font-extrabold text-slate-900 pb-2 mb-2.5 border-b border-slate-200 flex items-center justify-between gap-1">
+                      <span>${bucket.label}</span>
+                      <span class="px-2 py-0.5 rounded-full bg-white text-slate-600 text-xs border border-slate-200 shrink-0">${itemsInBucket.length}</span>
+                    </div>
+                    <div class="space-y-2 flex-1">
+                      ${itemsInBucket.map(item => {
+                        let chipStyle = "bg-blue-50 border-blue-300 text-blue-950";
+                        let statusMark = "";
+                        if (existingResult) {
+                          if (item.target === bucket.id) {
+                            chipStyle = "bg-emerald-50 border-emerald-400 text-emerald-950";
+                            statusMark = "✅ ";
+                          } else {
+                            chipStyle = "bg-rose-50 border-rose-400 text-rose-950";
+                            statusMark = "❌ ";
+                          }
+                        }
+                        return `
+                          <div draggable="${!existingResult}"
+                            ondragstart="handleDragStart(event, '${item.id}')"
+                            onclick="event.stopPropagation(); removeChipFromBucket('${q.id}', '${item.id}')"
+                            title="${existingResult ? '' : '點擊可移回上方待分類區 | Click to return to pool'}"
+                            class="draggable-chip p-2.5 rounded-xl border text-xs sm:text-sm font-semibold leading-snug shadow-xs ${chipStyle}">
+                            ${statusMark}${item.text}
+                          </div>
+                        `;
+                      }).join("")}
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      // Update Buttons & Explanation Visibility
+      const btnSubmit = document.getElementById("btn-submit-q");
+      const btnNext = document.getElementById("btn-next-q");
+      const btnReset = document.getElementById("btn-reset-q");
+      const expBox = document.getElementById("q-explanation-box");
+
+      if (existingResult) {
+        btnSubmit.classList.add("hidden");
+        btnReset.classList.add("hidden");
+        btnNext.classList.remove("hidden");
+
+        const totalAnswered = Object.keys(state.answeredQuestions).length;
+        if (totalAnswered === QUESTIONS.length) {
+          btnNext.textContent = "🎉 查看過關總結 | View Completion Summary";
+        } else if (state.currentQuestionIdxInLevel === 4) {
+          btnNext.textContent = "進入下一關 | Next Level ➡️";
+        } else {
+          btnNext.textContent = "下一題 | Next Question ➡️";
+        }
+
+        expBox.classList.remove("hidden");
+        if (existingResult.isCorrect) {
+          expBox.className = "rounded-2xl border-2 border-emerald-300 bg-emerald-50/80 p-5 space-y-3";
+          document.getElementById("exp-status-icon").textContent = "🎉";
+          document.getElementById("exp-status-title").textContent = "回答正確！完全掌握核心概念 | Correct! Well Done!";
+          document.getElementById("exp-status-title").className = "font-extrabold text-base sm:text-lg text-emerald-900";
+          document.getElementById("exp-score-earned").textContent = `本題獲得 Points Earned: +${existingResult.earned}`;
+          document.getElementById("exp-score-earned").className = "text-xs font-extrabold text-emerald-700";
+        } else {
+          expBox.className = "rounded-2xl border-2 border-rose-300 bg-rose-50/80 p-5 space-y-3";
+          document.getElementById("exp-status-icon").textContent = "💡";
+          document.getElementById("exp-status-title").textContent = "部分或全部選項有誤，請細閱以下中英對照解析 | Incorrect — Review Detailed Explanation:";
+          document.getElementById("exp-status-title").className = "font-extrabold text-base sm:text-lg text-rose-900";
+          document.getElementById("exp-score-earned").textContent = `本題獲得 Points Earned: +${existingResult.earned}`;
+          document.getElementById("exp-score-earned").className = "text-xs font-extrabold text-rose-700";
+        }
+        document.getElementById("exp-content").innerHTML = q.explanation;
+      } else {
+        btnSubmit.classList.remove("hidden");
+        btnReset.classList.remove("hidden");
+        btnNext.classList.add("hidden");
+        expBox.classList.add("hidden");
+      }
+    }
+
+    function selectMcqOption(qId, optId) {
+      if (state.answeredQuestions[qId]) return;
+      state.selectedMcq[qId] = optId;
+      renderCurrentQuestion();
+    }
+
+    let draggedItemId = null;
+    let tappedItemId = null;
+
+    function handleDragStart(event, itemId) {
+      draggedItemId = itemId;
+      event.dataTransfer.setData("text/plain", itemId);
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      event.currentTarget.classList.add("drag-over");
+    }
+
+    function handleDragLeave(event) {
+      event.currentTarget.classList.remove("drag-over");
+    }
+
+    function handleDropToBucket(event, qId, bucketId) {
+      event.preventDefault();
+      event.currentTarget.classList.remove("drag-over");
+      if (state.answeredQuestions[qId]) return;
+      const itemId = event.dataTransfer.getData("text/plain") || draggedItemId;
+      if (!itemId) return;
+      if (!state.dndPlacements[qId]) state.dndPlacements[qId] = {};
+      state.dndPlacements[qId][itemId] = bucketId;
+      tappedItemId = null;
+      renderCurrentQuestion();
+    }
+
+    function handleDropToPool(event, qId) {
+      event.preventDefault();
+      if (state.answeredQuestions[qId]) return;
+      const itemId = event.dataTransfer.getData("text/plain") || draggedItemId;
+      if (!itemId || !state.dndPlacements[qId]) return;
+      delete state.dndPlacements[qId][itemId];
+      renderCurrentQuestion();
+    }
+
+    function handleChipTap(qId, itemId) {
+      if (state.answeredQuestions[qId]) return;
+      tappedItemId = tappedItemId === itemId ? null : itemId;
+      document.querySelectorAll(".draggable-chip").forEach(el => {
+        el.classList.remove("ring-2", "ring-blue-600", "bg-blue-50");
+      });
+      if (tappedItemId) {
+        const chip = document.getElementById(`chip-${itemId}`);
+        if (chip) chip.classList.add("ring-2", "ring-blue-600", "bg-blue-50");
+      }
+    }
+
+    function handleBucketTap(qId, bucketId) {
+      if (state.answeredQuestions[qId] || !tappedItemId) return;
+      if (!state.dndPlacements[qId]) state.dndPlacements[qId] = {};
+      state.dndPlacements[qId][tappedItemId] = bucketId;
+      tappedItemId = null;
+      renderCurrentQuestion();
+    }
+
+    function removeChipFromBucket(qId, itemId) {
+      if (state.answeredQuestions[qId]) return;
+      if (state.dndPlacements[qId]) {
+        delete state.dndPlacements[qId][itemId];
+        renderCurrentQuestion();
+      }
+    }
+
+    function resetCurrentQuestion() {
+      const q = getCurrentQuestion();
+      if (state.answeredQuestions[q.id]) return;
+      if (q.type === "mcq") {
+        delete state.selectedMcq[q.id];
+      } else {
+        state.dndPlacements[q.id] = {};
+      }
+      tappedItemId = null;
+      renderCurrentQuestion();
+    }
+
+    function submitCurrentQuestion() {
+      const q = getCurrentQuestion();
+      if (state.answeredQuestions[q.id]) return;
+
+      let isCorrect = false;
+      let earned = 0;
+
+      if (q.type === "mcq") {
+        const chosen = state.selectedMcq[q.id];
+        if (!chosen) {
+          showToast("請先選擇一個答案選項！| Please select an option first!");
+          return;
+        }
+        isCorrect = chosen === q.correct;
+        earned = isCorrect ? q.points : 0;
+      } else if (q.type === "dnd") {
+        const placements = state.dndPlacements[q.id] || {};
+        if (Object.keys(placements).length < q.items.length) {
+          const rem = q.items.length - Object.keys(placements).length;
+          showToast(`尚有 ${rem} 個項目未分類，請先完成所有分類！| ${rem} item(s) remaining to classify!`);
+          return;
+        }
+        let correctCount = 0;
+        q.items.forEach(item => {
+          if (placements[item.id] === item.target) correctCount++;
+        });
+        isCorrect = correctCount === q.items.length;
+        earned = Math.round((correctCount / q.items.length) * q.points);
+      }
+
+      state.answeredQuestions[q.id] = { isCorrect, earned };
+      state.levelScores[q.level] += earned;
+
+      // Sync real student submission to persistent leaderboard
+      syncCurrentStudentToLeaderboard();
+
+      updateGlobalScoreHeader();
+      renderLevelCards();
+      renderCurrentQuestion();
+
+      if (Object.keys(state.answeredQuestions).length === QUESTIONS.length && !state.completionModalShown) {
+        state.completionModalShown = true;
+        setTimeout(() => {
+          triggerCompletionCelebration();
+        }, 700);
+      }
+    }
+
+    function nextQuestion() {
+      const totalAnswered = Object.keys(state.answeredQuestions).length;
+      if (totalAnswered === QUESTIONS.length) {
+        triggerCompletionCelebration();
+        return;
+      }
+
+      if (state.currentQuestionIdxInLevel < 4) {
+        state.currentQuestionIdxInLevel++;
+      } else if (state.currentLevel < 3) {
+        state.currentLevel++;
+        state.currentQuestionIdxInLevel = 0;
+      } else {
+        const nextUnanswered = QUESTIONS.find(q => !state.answeredQuestions[q.id]);
+        if (nextUnanswered) {
+          state.currentLevel = nextUnanswered.level;
+          const levelQs = QUESTIONS.filter(q => q.level === nextUnanswered.level);
+          state.currentQuestionIdxInLevel = levelQs.findIndex(q => q.id === nextUnanswered.id);
+        }
+      }
+      renderLevelCards();
+      renderCurrentQuestion();
+    }
+
+    function updateGlobalScoreHeader() {
+      const total = state.levelScores.reduce((acc, s) => acc + s, 0);
+      document.getElementById("header-total-score").textContent = total;
+    }
+
+    // =========================================================================
+    // 7. CELEBRATION MODAL ("恭喜過關！")
+    // =========================================================================
+    function triggerCompletionCelebration() {
+      const total = state.levelScores.reduce((acc, s) => acc + s, 0);
+      document.getElementById("modal-final-score").textContent = total;
+
+      const breakdownHtml = LEVELS.map((lvl, idx) => `
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+          <div class="text-slate-500 font-bold text-[11px]">${lvl.shortTitle}</div>
+          <div class="text-base font-black text-slate-900 mt-0.5">${state.levelScores[idx]} <span class="text-xs font-normal text-slate-400">/100</span></div>
+        </div>
+      `).join("");
+      document.getElementById("modal-level-breakdown").innerHTML = breakdownHtml;
+
+      document.getElementById("completion-modal").classList.remove("hidden");
+      spawnConfetti();
+    }
+
+    function closeCompletionModal() {
+      document.getElementById("completion-modal").classList.add("hidden");
+    }
+
+    function closeCompletionModalAndViewLeaderboard() {
+      closeCompletionModal();
+      switchTab("leaderboard");
+    }
+
+    function spawnConfetti() {
+      const colors = ["#2563eb", "#f59e0b", "#10b981", "#ec4899", "#8b5cf6"];
+      for (let i = 0; i < 65; i++) {
+        const piece = document.createElement("div");
+        piece.className = "confetti-piece";
+        piece.style.left = Math.random() * 100 + "vw";
+        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDuration = (Math.random() * 2 + 2) + "s";
+        piece.style.borderRadius = Math.random() > 0.5 ? "50%" : "2px";
+        document.body.appendChild(piece);
+        setTimeout(() => piece.remove(), 4200);
+      }
+    }
+
+    // =========================================================================
+    // 8. SEPARATE PER-LEVEL LEADERBOARDS (無預設假名 · 空白起步 · 頭三名獎勵)
+    // =========================================================================
+    function renderLeaderboards() {
+      const entries = state.leaderboardEntries;
+      const currentKey = firebaseUser ? firebaseUser.uid : "";
+
+      // Render 4 Separate Cards (One for each Level)
+      const gridContainer = document.getElementById("separate-leaderboards-grid");
+      gridContainer.innerHTML = LEVELS.map((lvl, levelIdx) => {
+        // Only show students who have scored > 0 in this level, or submitted in general
+        const sortedForLevel = [...entries]
+          .filter(stu => stu.levelScores[levelIdx] > 0)
+          .sort((a, b) => b.levelScores[levelIdx] - a.levelScores[levelIdx]);
+
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between gap-2">
+              <div>
+                <span class="text-xs font-bold text-amber-300 uppercase tracking-wider">${lvl.shortTitle} 獨立排行榜 | Level ${levelIdx + 1} Ranking</span>
+                <h3 class="text-sm sm:text-base font-extrabold">${lvl.title}</h3>
+              </div>
+              <span class="px-2.5 py-1 rounded-lg bg-white/10 text-xs font-bold text-slate-200 shrink-0">
+                滿分 100 | Max 100
+              </span>
+            </div>
+
+            <div class="p-4 space-y-2 flex-1 flex flex-col justify-center">
+              ${sortedForLevel.length === 0
+                ? `<div class="text-center py-8 px-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 space-y-1">
+                    <div class="text-2xl">🏅</div>
+                    <div class="text-xs sm:text-sm font-bold text-slate-700">目前尚未有提交紀錄，完成本關後即可上榜！</div>
+                    <div class="text-xs text-slate-500">No submissions yet. Complete this level to enter the Top 3 ranking!</div>
+                  </div>`
+                : sortedForLevel.map((stu, rankIdx) => {
+                    const isTop3 = rankIdx < 3;
+                    const isCurrentUser = stu.uid === currentKey;
+                    const medal = rankIdx === 0 ? "🥇 冠軍 1st" : rankIdx === 1 ? "🥈 亞軍 2nd" : rankIdx === 2 ? "🥉 季軍 3rd" : `第 ${rankIdx + 1} 名 | #${rankIdx + 1}`;
+                    const rowBg = isCurrentUser
+                      ? "bg-blue-50 border-blue-400 ring-1 ring-blue-300"
+                      : isTop3
+                      ? "bg-amber-50/50 border-amber-200"
+                      : "bg-slate-50 border-slate-200/70";
+
+                    return `
+                      <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl border ${rowBg}">
+                        <div class="flex items-center gap-2.5">
+                          <span class="text-xs font-extrabold px-2 py-0.5 rounded-md ${
+                            isTop3 ? "bg-amber-100 text-amber-900" : "bg-slate-200 text-slate-600"
+                          }">
+                            ${medal}
+                          </span>
+                          <div>
+                            <span class="text-sm font-bold text-slate-900">${stu.name}</span>
+                            <span class="text-xs text-slate-500 ml-1">(${CLASS_LABEL})</span>
+                            ${isCurrentUser ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold">你 | You</span>` : ""}
+                          </div>
+                        </div>
+                        <div class="text-sm font-black ${isTop3 ? "text-amber-700" : "text-slate-700"}">
+                          ${stu.levelScores[levelIdx]} 分 (pts)
+                        </div>
+                      </div>
+                    `;
+                  }).join("")
+              }
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Render Overall Combined Leaderboard
+      const sortedOverall = [...entries]
+        .map(s => ({
+          ...s,
+          total: s.levelScores.reduce((a, b) => a + b, 0)
+        }))
+        .filter(s => s.total > 0)
+        .sort((a, b) => b.total - a.total);
+
+      const overallContainer = document.getElementById("overall-leaderboard-list");
+      if (sortedOverall.length === 0) {
+        overallContainer.innerHTML = `
+          <div class="text-center py-8 px-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 space-y-1">
+            <div class="text-sm font-bold text-slate-700">目前尚未有總分紀錄，完成關卡後即可上榜！</div>
+            <div class="text-xs text-slate-500">No overall submissions yet. Complete levels to appear on the combined leaderboard!</div>
+          </div>
+        `;
+      } else {
+        overallContainer.innerHTML = sortedOverall.map((stu, idx) => {
+          const isCurrentUser = stu.uid === currentKey;
+          const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`;
+          return `
+            <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-xl border ${
+              isCurrentUser ? "bg-blue-50 border-blue-400" : "bg-slate-50 border-slate-200"
+            }">
+              <div class="flex items-center gap-3">
+                <span class="text-base font-black w-8 text-center">${medal}</span>
+                <div>
+                  <span class="font-extrabold text-sm text-slate-900">${stu.name}</span>
+                  <span class="text-xs text-slate-500 ml-1">(${CLASS_LABEL})</span>
+                  ${isCurrentUser ? `<span class="ml-1.5 px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold">你 | You</span>` : ""}
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                <span>L1:${stu.levelScores[0]}</span>
+                <span>•</span>
+                <span>L2:${stu.levelScores[1]}</span>
+                <span>•</span>
+                <span>L3:${stu.levelScores[2]}</span>
+                <span>•</span>
+                <span>L4:${stu.levelScores[3]}</span>
+                <span class="ml-2 px-3 py-1 rounded-lg bg-slate-900 text-white font-black text-sm">
+                  總分 Total: ${stu.total}
+                </span>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    function updateTeacherControls() {
+      const isTeacher = !!(firebaseUser && firebaseUser.uid === TEACHER_UID && !firebaseUser.isAnonymous);
+      document.getElementById("teacher-login-button").classList.toggle("hidden", isTeacher);
+      document.getElementById("teacher-logout-button").classList.toggle("hidden", !isTeacher);
+      document.getElementById("teacher-reset-button").classList.toggle("hidden", !isTeacher);
+    }
+
+    function openTeacherLoginModal() { document.getElementById("teacher-login-modal").classList.remove("hidden"); }
+    function closeTeacherLoginModal() {
+      document.getElementById("teacher-login-modal").classList.add("hidden");
+      document.getElementById("teacher-password").value = "";
+    }
+
+    async function teacherSignIn() {
+      const email = document.getElementById("teacher-email").value.trim();
+      const password = document.getElementById("teacher-password").value;
+      if (!email || !password) { showToast("請輸入教師 Email 及密碼。| Enter teacher email and password."); return; }
+      try {
+        const result = await auth.signInWithEmailAndPassword(email, password);
+        if (result.user.uid !== TEACHER_UID) {
+          await auth.signOut();
+          await auth.signInAnonymously();
+          showToast("此帳戶沒有教師管理權限。| This account is not authorized as a teacher.");
+          return;
+        }
+        closeTeacherLoginModal();
+        showToast("教師登入成功。| Teacher signed in.");
+      } catch (err) {
+        console.error(err);
+        showToast("教師登入失敗，請檢查帳戶資料。| Teacher sign-in failed.");
+      }
+    }
+
+    async function teacherSignOut() {
+      try { await auth.signOut(); await auth.signInAnonymously(); showToast("教師已登出。| Teacher signed out."); }
+      catch (err) { console.error(err); showToast("登出失敗。| Sign-out failed."); }
+    }
+
+    function openResetLeaderboardModal() {
+      if (!firebaseUser || firebaseUser.uid !== TEACHER_UID || firebaseUser.isAnonymous) {
+        showToast("只有教師可以清空排行榜。| Teacher access required."); return;
+      }
+      document.getElementById("reset-lb-modal").classList.remove("hidden");
+    }
+
+    function closeResetLeaderboardModal() {
+      document.getElementById("reset-lb-modal").classList.add("hidden");
+    }
+
+    async function confirmResetLeaderboard() {
+      if (!firebaseUser || firebaseUser.uid !== TEACHER_UID || firebaseUser.isAnonymous) {
+        showToast("只有教師可以清空排行榜。| Teacher access required."); return;
+      }
+      try {
+        const snapshot = await db.collection("leaderboard").where("classId", "==", CLASS_ID).get();
+        const docs = snapshot.docs;
+        for (let i = 0; i < docs.length; i += 400) {
+          const batch = db.batch();
+          docs.slice(i, i + 400).forEach(doc => batch.delete(doc.ref));
+          await batch.commit();
+        }
+        closeResetLeaderboardModal();
+        showToast("本班排行榜已清空。| This class leaderboard has been reset.");
+      } catch (err) {
+        console.error(err);
+        showToast("清空失敗，請檢查教師權限及 Firestore Rules。| Reset failed.");
+      }
+    }
+
+    // =========================================================================
+    // 9. INTERACTIVE BILINGUAL MIND MAP (全中英對照 · 核心法律定義突出顯示)
+    // =========================================================================
+    function selectMindMapBranch(branch) {
+      state.mindMapBranch = branch;
+      document.querySelectorAll(".mm-branch-btn").forEach(btn => {
+        btn.className = "mm-branch-btn p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-300 text-left transition";
+      });
+      const activeBtn = document.getElementById(`mm-btn-${branch}`);
+      if (activeBtn) {
+        activeBtn.className = "mm-branch-btn p-4 rounded-2xl border-2 border-blue-600 bg-blue-50 text-left transition";
+      }
+      renderMindMap();
+    }
+
+    function renderMindMap() {
+      const container = document.getElementById("mindmap-content");
+      const b = state.mindMapBranch;
+
+      if (b === "overview") {
+        container.innerHTML = `
+          <div class="space-y-6">
+            <div class="border-b border-slate-200 pb-3">
+              <h3 class="text-lg sm:text-xl font-black text-slate-900">📌 核心法律定義與商業擁有權分類 | Core Legal Definitions & Ownership Classification</h3>
+              <p class="text-xs sm:text-sm text-slate-600 mt-1">
+                廠商 (Firm) 是指進行生產的決策單位，它購買投入 (Inputs) 以生產物品和服務作為產出 (Outputs)。
+                <br/><span class="text-slate-500">A firm is a decision-making unit that carries out production by purchasing inputs to produce goods and services as outputs.</span>
+              </p>
+            </div>
+
+            <!-- 3 Core Legal Definitions Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="rounded-2xl border-2 border-indigo-200 bg-indigo-50/40 p-4 space-y-1.5">
+                <div class="text-sm font-black text-indigo-900">⚖️ 獨立法人 | Separate Legal Entity</div>
+                <p class="text-xs sm:text-sm text-slate-800 leading-relaxed">
+                  企業在法律上是一個獨立的個體，可以企業自身的名義擁有財產、簽訂合同及參與訴訟（包括起訴別人和被人起訴）。（註：獨資和合夥<strong>並不是法人</strong>，東主須以個人名義行事。）
+                </p>
+                <p class="text-xs text-slate-600 leading-relaxed">
+                  An entity with an independent legal identity that can own property, sign contracts, and sue or be sued in its own name. (Note: Sole proprietorships and partnerships are <strong>not</strong> separate legal entities.)
+                </p>
+              </div>
+
+              <div class="rounded-2xl border-2 border-rose-200 bg-rose-50/40 p-4 space-y-1.5">
+                <div class="text-sm font-black text-rose-900">⚠️ 無限債務責任 | Unlimited Liability</div>
+                <p class="text-xs sm:text-sm text-slate-800 leading-relaxed">
+                  東主的債務責任不限於其投資在廠商的金額。東主須對廠商的債務負上全部責任，可能要動用個人資產來償還廠商的債務。
+                </p>
+                <p class="text-xs text-slate-600 leading-relaxed">
+                  Owners' liability for the firm's debts is not limited to the amount they have invested in the firm; they bear full responsibility and may have to use personal assets to repay the firm's debts.
+                </p>
+              </div>
+
+              <div class="rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-4 space-y-1.5">
+                <div class="text-sm font-black text-emerald-900">🛡️ 有限債務責任 | Limited Liability</div>
+                <p class="text-xs sm:text-sm text-slate-800 leading-relaxed">
+                  東主（股東）的債務責任僅限於其投資在廠商的金額。由於有限公司是獨立法人，由公司自行承擔所有債務責任，股東毋須動用個人資產來償還有限公司的債務。
+                </p>
+                <p class="text-xs text-slate-600 leading-relaxed">
+                  Owners' (shareholders') liability for the firm's debts is limited to the amount they have invested in the firm; as a separate legal entity, the company bears its own debts and shareholders do not need to use personal assets.
+                </p>
+              </div>
+            </div>
+
+            <!-- Private vs Public Ownership Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <!-- Private Ownership -->
+              <div class="rounded-2xl border-2 border-blue-200 bg-blue-50/40 p-5 space-y-3">
+                <div class="inline-block px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-extrabold">
+                  6.1 私有制 Private Ownership → 私營企業 Private Enterprise
+                </div>
+                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  由私人擁有的企業稱為<strong>私營企業</strong>，通常以<strong>賺取利潤</strong>為營運目標。
+                  <br/><span class="text-slate-500">Enterprises owned by private individuals are private enterprises, usually aiming to maximize profits.</span>
+                </p>
+                <div class="space-y-2 text-xs">
+                  <div class="p-3 rounded-xl bg-white border border-blue-100 space-y-1">
+                    <div class="font-extrabold text-blue-900">1. 東主承擔無限債務責任 | Unlimited Liability:</div>
+                    <div class="text-slate-700">• <strong>獨資 Sole Proprietorship</strong>：1 名東主 (1 owner)<br/>• <strong>合夥 Partnership</strong>：2 名或以上東主 (2 or more owners)</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-white border border-blue-100 space-y-1">
+                    <div class="font-extrabold text-blue-900">2. 東主承擔有限債務責任 | Limited Liability:</div>
+                    <div class="text-slate-700">• <strong>私人有限公司 Private Limited Company</strong>：1 至 50 名股東 (1–50 shareholders)<br/>• <strong>公眾有限公司 Public Limited Company</strong>：1 名至無限名股東 (1 to unlimited shareholders; listed if traded on a stock exchange)</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Public Ownership -->
+              <div class="rounded-2xl border-2 border-amber-200 bg-amber-50/40 p-5 space-y-3">
+                <div class="inline-block px-3 py-1 rounded-lg bg-amber-600 text-white text-xs font-extrabold">
+                  6.3 公有制 Public Ownership → 公營企業 Public Enterprise
+                </div>
+                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  由政府全資擁有的廠商稱為<strong>公營企業</strong>，旨在以低廉價格或免費提供基本物品和服務（而非牟利）。明確分為<strong>政府部門</strong>（包括直接撥款及營運基金兩種運作形式）及<strong>公營公司</strong>：
+                  <br/><span class="text-slate-500">Enterprises wholly owned by the government are called <strong>public enterprises</strong>, aiming to provide essential goods and services at low prices or free of charge (rather than profit-making). They are clearly divided into <strong>government departments</strong> (including directly funded and trading fund operations) and <strong>public corporations</strong>:</span>
+                </p>
+                <div class="space-y-2.5 text-xs">
+                  <div class="p-3.5 rounded-xl bg-white border border-amber-100 space-y-2">
+                    <div class="font-extrabold text-amber-900">1. 政府部門 Government Departments（嚴格分為兩類 | Strictly Divided into 2 Types）：</div>
+                    <div class="text-slate-700 leading-relaxed space-y-1">
+                      <div>
+                        • <strong>政府直接提供資金的政府部門 Directly Funded Government Departments：</strong>屬於政府架構內的單位，由政府官員直接管理和營運，僱員大多數是公務員，由政府直接提供資金。例子：水務署、房屋署、消防處、香港警務處、衞生署。
+                      </div>
+                      <div class="text-slate-500">
+                        Units within the government structure, directly managed and operated by government officials, with most employees being civil servants and funded directly by the government. Examples: Water Supplies Department, Housing Department, Fire Services Department, Hong Kong Police Force, Department of Health.
+                      </div>
+                    </div>
+                    <div class="text-slate-700 leading-relaxed space-y-1 pt-1 border-t border-slate-100">
+                      <div>
+                        • <strong>以營運基金運作的政府部門 Government Departments Operating on a Trading Fund Basis：</strong>仍屬於政府架構內的單位，由政府官員直接管理，僱員大多數是公務員，但以營運基金的形式運作。例子：機電工程署、土地註冊處、香港郵政。
+                      </div>
+                      <div class="text-slate-500">
+                        Still units within the government structure, directly managed by government officials with most employees being civil servants, but operating on a trading fund basis. Examples: Electrical and Mechanical Services Department (EMSD), Land Registry, Hongkong Post.
+                      </div>
+                    </div>
+                  </div>
+                  <div class="p-3.5 rounded-xl bg-white border border-amber-100 space-y-1.5">
+                    <div class="font-extrabold text-amber-900">2. 公營公司 Public Corporations：</div>
+                    <p class="text-slate-700 leading-relaxed">
+                      根據法例成立，不屬於政府架構的一部分。政府透過任命獨立董事局來間接管理公營公司；其僱員大多數都不是公務員；其主要目標是按照商業原則（例如成本極小化）提供公共服務；它在財政上獨立於政府。例子：<strong>醫院管理局、香港機場管理局、海洋公園公司</strong>。
+                    </p>
+                    <p class="text-slate-500 leading-relaxed">
+                      Established by statute and not part of the government structure. Managed indirectly by the government through an appointed independent board of directors; most employees are not civil servants; its main objective is to provide public services according to commercial principles (e.g., cost minimisation); it is financially independent of the government. Examples: <strong>Hospital Authority, Airport Authority Hong Kong, Ocean Park Corporation</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (b === "private") {
+        container.innerHTML = `
+          <div class="space-y-6">
+            <div class="border-b border-slate-200 pb-3">
+              <h3 class="text-lg sm:text-xl font-black text-slate-900">🏢 6.1 私有制：獨資、合夥與有限公司完整對比表 | Complete Comparison of Private Enterprises</h3>
+              <p class="text-xs sm:text-sm text-slate-600 mt-1">掌握四種私營企業在法人地位、債務責任、延續性、集資及轉讓上的核心差異。| Master the differences in legal status, liability, continuity, financing & transferability.</p>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs sm:text-sm text-left border-collapse border border-slate-200 rounded-xl overflow-hidden">
+                <thead class="bg-slate-900 text-white">
+                  <tr>
+                    <th class="p-3 border border-slate-700">比較項目 | Feature</th>
+                    <th class="p-3 border border-slate-700">獨資 | Sole Proprietorship</th>
+                    <th class="p-3 border border-slate-700">合夥 | Partnership</th>
+                    <th class="p-3 border border-slate-700">私人有限公司 | Private Ltd.</th>
+                    <th class="p-3 border border-slate-700">公眾有限公司 | Public Ltd.</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  <tr>
+                    <td class="p-3 font-bold bg-slate-50">東主／股東數目 | No. of Owners</td>
+                    <td class="p-3">1 名 | 1</td>
+                    <td class="p-3">2 名或以上 | 2 or more</td>
+                    <td class="p-3">1 至 50 名 | 1 to 50</td>
+                    <td class="p-3">1 名至無限 | 1 to infinity</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-bold bg-slate-50">是否獨立法人 | Separate Legal Entity</td>
+                    <td class="p-3 text-rose-700 font-semibold">不是法人 | No</td>
+                    <td class="p-3 text-rose-700 font-semibold">不是法人 | No</td>
+                    <td class="p-3 text-emerald-700 font-semibold">是獨立法人 | Yes</td>
+                    <td class="p-3 text-emerald-700 font-semibold">是獨立法人 | Yes</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-bold bg-slate-50">債務責任 | Liability</td>
+                    <td class="p-3 text-rose-700 font-semibold">無限債務責任 | Unlimited</td>
+                    <td class="p-3 text-rose-700 font-semibold">無限債務責任 | Unlimited</td>
+                    <td class="p-3 text-emerald-700 font-semibold">有限債務責任 | Limited</td>
+                    <td class="p-3 text-emerald-700 font-semibold">有限債務責任 | Limited</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-bold bg-slate-50">延續性 | Continuity</td>
+                    <td class="p-3">缺乏延續性 | Lacks continuity</td>
+                    <td class="p-3">缺乏延續性 | Lacks continuity</td>
+                    <td class="p-3">持久的延續性 | Lasting</td>
+                    <td class="p-3">持久的延續性 | Lasting</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-bold bg-slate-50">向公眾發行股票／債券 | Public Issue</td>
+                    <td class="p-3">不可以 | No</td>
+                    <td class="p-3">不可以 | No</td>
+                    <td class="p-3">不可以 | No</td>
+                    <td class="p-3 font-bold text-blue-700">可以 | Yes</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-bold bg-slate-50">擁有權轉讓 | Transfer of Ownership</td>
+                    <td class="p-3">自由出售整個企業 | Freely sell whole firm</td>
+                    <td class="p-3">須得到其他合夥人同意 | Requires partners' consent</td>
+                    <td class="p-3">須得到其他股東同意 | Requires shareholders' consent</td>
+                    <td class="p-3">可以自由轉讓（被收購風險較高）| Freely transferable (higher takeover risk)</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-bold bg-slate-50">向公眾披露財務資料 | Public Financial Disclosure</td>
+                    <td class="p-3">毋須披露 | No</td>
+                    <td class="p-3">毋須披露 | No</td>
+                    <td class="p-3">毋須披露 | No</td>
+                    <td class="p-3 font-bold text-amber-700">必須向公眾披露 | Mandatory</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-xs sm:text-sm space-y-1">
+              <div class="font-extrabold text-indigo-900">📖 參考案例（生活實例 6.1）：上市公司私有化 | Privatization of a Listed Company</div>
+              <p class="text-slate-700">
+                公眾有限公司私有化為私人有限公司後：<strong>優點</strong>是毋須向公眾披露財務資料、被其他公司收購的風險減少；<strong>缺點</strong>是不能向公眾發行股票或債券集資、轉讓擁有權須得到其他股東同意。
+                <br/><span class="text-slate-500">After privatizing into a private limited company: <strong>Pros</strong> — no public financial disclosure & lower takeover risk; <strong>Cons</strong> — cannot issue shares/bonds to the public & share transfer requires other shareholders' consent.</span>
+              </p>
+            </div>
+          </div>
+        `;
+      } else if (b === "shares_bonds") {
+        container.innerHTML = `
+          <div class="space-y-6">
+            <div class="border-b border-slate-200 pb-3">
+              <h3 class="text-lg sm:text-xl font-black text-slate-900">📈 6.2 股票和債券：公司角度 vs 小投資者角度優缺點對比 | Shares & Bonds: Company vs. Small Investor Perspectives</h3>
+              <p class="text-xs sm:text-sm text-slate-600 mt-1">嚴格區分「從有限公司／現有股東角度」與「從小投資者角度」的優缺點！| Distinguish clearly between the company/existing shareholders' perspective and the small investor's perspective.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2 text-xs sm:text-sm">
+                <h4 class="font-extrabold text-blue-800 text-base">① 從有限公司／現有股東角度 | Company & Existing Shareholders' Perspective</h4>
+                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <div class="font-bold text-slate-900">發行股票 | Issuing Shares</div>
+                  <p class="text-emerald-700"><strong>優點 Pros：</strong>沒有利息負擔（虧損時毋須派息）、沒有贖回義務、提高獲取新銀行貸款的能力。| No interest burden, no redemption obligation, improves ability to get new bank loans.</p>
+                  <p class="text-rose-700"><strong>缺點 Cons：</strong>削弱現有股東的控制權、增加公司被收購的風險、攤薄利潤。| Dilutes existing shareholders' control, increases takeover risk, dilutes profits.</p>
+                </div>
+                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <div class="font-bold text-slate-900">發行債券 | Issuing Bonds</div>
+                  <p class="text-emerald-700"><strong>優點 Pros：</strong>不會削弱現有股東的控制權（債券持有人沒有投票權），不會增加被收購風險。| Does not dilute existing shareholders' control (no voting rights), no extra takeover risk.</p>
+                  <p class="text-rose-700"><strong>缺點 Cons：</strong>有固定利息負擔（賺蝕均須付息）、有贖回義務（到期還本）、削弱獲取新銀行貸款的能力。| Fixed interest burden regardless of profit, redemption obligation at maturity, weakens ability to get new bank loans.</p>
+                </div>
+              </div>
+
+              <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2 text-xs sm:text-sm">
+                <h4 class="font-extrabold text-emerald-800 text-base">② 從小投資者角度 | Small Investor's Perspective</h4>
+                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <div class="font-bold text-slate-900">購買股票 | Buying Shares</div>
+                  <p class="text-emerald-700"><strong>優點 Pros：</strong>公司盈利理想時可獲較高股息及資本增值；在股東大會擁有投票權。| Higher potential dividends & capital gains when profitable; voting rights at general meetings.</p>
+                  <p class="text-rose-700"><strong>缺點 Cons：</strong>股息回報不固定（虧損時可能沒股息，股價下跌引致資本損失）；投資風險較高（清盤時最後取回資本）。| Variable dividends (risk of zero dividends or capital loss); higher investment risk (last in liquidation).</p>
+                </div>
+                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <div class="font-bold text-slate-900">購買債券 | Buying Bonds</div>
+                  <p class="text-emerald-700"><strong>優點 Pros：</strong>獲定期固定利息及到期取回本金，投資風險較低；清盤時取回資本優先次序高於股東。| Regular fixed interest & principal repaid at maturity, lower risk, higher liquidation priority than shareholders.</p>
+                  <p class="text-rose-700"><strong>缺點 Cons：</strong>回報上限固定（不能分享公司額外盈利）；作為債權人沒有投票權，不能影響公司決策。| Capped returns (no share in extra profits); no voting rights as a creditor.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm space-y-1">
+              <div class="font-extrabold text-emerald-900">⚖️ 有限公司清盤時取回資本的五級優先次序 | 5-Tier Liquidation Priority Order:</div>
+              <div class="font-bold text-slate-800">
+                1. 有抵押債權人 Secured Creditors → 2. 清盤人 Liquidator → 3. 政府和公司的僱員 Government & Employees → 4. 無抵押債權人（如債券持有人）Unsecured Creditors (e.g. Bondholders) → 5. 股東 Shareholders
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (b === "public") {
+        container.innerHTML = `
+          <div class="space-y-6">
+            <div class="border-b border-slate-200 pb-3">
+              <h3 class="text-lg sm:text-xl font-black text-slate-900">🏛️ 6.3 公有制：兩類政府部門與公營公司 | Public Ownership: 2 Types of Gov. Depts & Public Corporations</h3>
+              <p class="text-xs sm:text-sm text-slate-600 mt-1">重要區分：以營運基金運作的政府部門仍然屬於政府部門，不可與普通政府部門或公營公司混為一談！| Crucial Distinction: Trading fund departments are still government departments—never confuse them with directly funded departments or public corporations!</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+              <div class="p-4 rounded-2xl border-2 border-slate-300 bg-slate-50 space-y-2">
+                <div class="font-extrabold text-slate-900 text-base">① 政府直接提供資金的政府部門 | Directly Funded Government Departments</div>
+                <ul class="list-disc pl-4 space-y-1.5 text-slate-700">
+                  <li>屬於政府架構內的單位，由政府官員直接管理和營運。<br/><span class="text-slate-500">Units within the government structure, directly managed and operated by government officials.</span></li>
+                  <li>僱員大多數是公務員，由政府直接提供資金。<br/><span class="text-slate-500">Most employees are civil servants, and funding comes directly from the government.</span></li>
+                  <li><strong>例子 Examples：</strong>水務署 Water Supplies Department、房屋署 Housing Department、消防處 Fire Services Department、香港警務處 Hong Kong Police Force、衞生署 Department of Health</li>
+                </ul>
+              </div>
+
+              <div class="p-4 rounded-2xl border-2 border-blue-300 bg-blue-50/50 space-y-2">
+                <div class="font-extrabold text-blue-900 text-base">② 以營運基金運作的政府部門 | Government Departments Operating on a Trading Fund Basis</div>
+                <ul class="list-disc pl-4 space-y-1.5 text-slate-700">
+                  <li>仍屬於政府架構內的單位，由政府官員直接管理。<br/><span class="text-slate-500">Still units within the government structure, directly managed by government officials.</span></li>
+                  <li>僱員大多數是公務員，但以營運基金的形式運作（財政上自負盈虧）。<br/><span class="text-slate-500">Most employees are civil servants, but operating on a self-financing trading fund basis.</span></li>
+                  <li><strong>例子 Examples：</strong>機電工程署 Electrical and Mechanical Services Department (EMSD)、土地註冊處 Land Registry、香港郵政 Hongkong Post</li>
+                </ul>
+              </div>
+
+              <div class="p-4 rounded-2xl border-2 border-amber-300 bg-amber-50/50 space-y-2">
+                <div class="font-extrabold text-amber-900 text-base">③ 公營公司 | Public Corporations</div>
+                <ul class="list-disc pl-4 space-y-1.5 text-slate-700">
+                  <li>根據法例成立，不屬於政府架構的一部分；政府透過任命獨立董事局來間接管理公營公司。<br/><span class="text-slate-500">Established by statute and not part of the government structure; managed indirectly by the government through an appointed independent board of directors.</span></li>
+                  <li>其僱員大多數都不是公務員；主要目標是按照商業原則（例如成本極小化）提供公共服務；在財政上獨立於政府。<br/><span class="text-slate-500">Most employees are not civil servants; its main objective is to provide public services according to commercial principles (e.g., cost minimisation); it is financially independent of the government.</span></li>
+                  <li><strong>例子 Examples：</strong>醫院管理局 Hospital Authority、香港機場管理局 Airport Authority Hong Kong、海洋公園公司 Ocean Park Corporation</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs sm:text-sm space-y-1">
+              <div class="font-extrabold text-amber-900">📖 參考案例（生活實例 6.2）：出售公共屋邨零售及停車場設施 | Selling Public Estate Facilities to Private Enterprise</div>
+              <p class="text-slate-700">
+                公營房屋機構面對財政困難（影響屋邨保養和衞生）而向私營企業出售商場和停車場。私營企業以賺取利潤為目標，大幅提高商鋪和車位租金，商戶隨之加價，加重了低收入住戶的經濟負擔。
+                <br/><span class="text-slate-500">Facing financial difficulties affecting estate maintenance and hygiene, the public housing body sold its malls and car parks to a profit-driven private firm, which sharply raised rents and led to higher retail prices for low-income residents.</span>
+              </p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // =========================================================================
+    // 10. PROFILE MODAL & TOAST HELPERS
+    // =========================================================================
+    function openProfileModal() {
+      document.getElementById("input-student-name").value = state.studentName;
+      document.getElementById("profile-modal").classList.remove("hidden");
+    }
+
+    function closeProfileModal() {
+      document.getElementById("profile-modal").classList.add("hidden");
+    }
+
+    function saveStudentProfile() {
+      const sName = document.getElementById("input-student-name").value.trim() || "經濟學習者";
+      state.studentName = sName.slice(0, 20);
+      document.getElementById("display-student-name").textContent = `${state.studentName} · ${CLASS_LABEL}`;
+      closeProfileModal();
+      if (Object.keys(state.answeredQuestions).length > 0) {
+        syncCurrentStudentToLeaderboard();
+      }
+      if (state.activeTab === "leaderboard") renderLeaderboards();
+    }
+
+    function showToast(msg) {
+      const toast = document.createElement("div");
+      toast.className = "fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-lg text-xs sm:text-sm font-bold border border-slate-700 text-center max-w-md";
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2800);
+    }
+
+    // =========================================================================
+    // 11. INITIALIZE APPLICATION ON WINDOW LOAD
+    // =========================================================================
+    window.onload = function () {
+      initializeFirebase();
+      document.getElementById("display-student-name").textContent = `${state.studentName} · ${CLASS_LABEL}`;
+      updateGlobalScoreHeader();
+      renderLevelCards();
+      renderCurrentQuestion();
+      updateTimerUI();
+      startTimer();
+    };
+  </script>
+</body>
+</html>
