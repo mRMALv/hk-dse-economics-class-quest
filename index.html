@@ -1283,23 +1283,49 @@
 
     async function syncCurrentStudentToLeaderboard() {
       const answeredCount = Object.keys(state.answeredQuestions).length;
-      if (answeredCount === 0 || !firebaseUser || firebaseUser.isAnonymous === false) return;
+      if (answeredCount === 0 || !firebaseUser || firebaseUser.isAnonymous === false) {
+        return { status: "skipped" };
+      }
+      if (!state.classId) {
+        return { status: "no-class" };
+      }
+
       const nickname = (state.studentName || "經濟學習者").trim().slice(0, 20);
+      const totalScore = state.levelScores.reduce((a, b) => a + b, 0);
       const record = {
         uid: firebaseUser.uid,
         classId: state.classId,
         nickname,
-        totalScore: state.levelScores.reduce((a, b) => a + b, 0),
+        totalScore,
         levelScores: [...state.levelScores],
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
+
       try {
-        // One browser account can participate in either class without overwriting its other class record.
+        // Keep the best score for this anonymous student in this class.
+        // A transaction prevents two overlapping autosaves from replacing a newer,
+        // higher score with an older, lower score.
         const recordId = `${state.classId}_${firebaseUser.uid}`;
-        await db.collection("leaderboard").doc(recordId).set(record);
+        const recordRef = db.collection("leaderboard").doc(recordId);
+        const result = await db.runTransaction(async transaction => {
+          const existing = await transaction.get(recordRef);
+          const previousScore = existing.exists
+            && Number.isFinite(existing.data().totalScore)
+            ? existing.data().totalScore
+            : -1;
+
+          if (existing.exists && totalScore <= previousScore) {
+            return { status: "kept-existing", bestScore: previousScore };
+          }
+
+          transaction.set(recordRef, record);
+          return { status: "updated", bestScore: totalScore };
+        });
+        return result;
       } catch (err) {
-        console.error("Unable to save score", err);
+        console.error("Unable to save best score", err);
         showToast("成績未能同步，請稍後再試。| Score could not be synced.");
+        return { status: "error" };
       }
     }
 
@@ -1309,9 +1335,15 @@
         showToast("請先在闖關挑戰回答至少一題，再提交成績上榜！| Please answer at least 1 question first!");
         return;
       }
-      syncCurrentStudentToLeaderboard().then(() => {
+      syncCurrentStudentToLeaderboard().then(result => {
         renderLeaderboards();
-        showToast("✅ 你的成績已提交至班別雲端排行榜！| Your score was submitted to the class leaderboard!");
+        if (result.status === "updated") {
+          showToast("✅ 新的個人最佳成績已更新至班別排行榜！| New personal best saved to the class leaderboard!");
+        } else if (result.status === "kept-existing") {
+          showToast(`已保留個人最佳成績：${result.bestScore} 分。這次分數較低或相同，排行榜不會被取代。| Your best score of ${result.bestScore} was kept; this attempt did not replace it.`);
+        } else if (result.status === "no-class") {
+          showToast("請先選擇班別，再提交成績。| Please select a class before submitting.");
+        }
       });
     }
 
