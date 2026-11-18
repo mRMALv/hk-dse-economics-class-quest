@@ -401,7 +401,6 @@
       <div class="space-y-3">
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">班別 | Class</label>
-          <p id="student-class-lock-note" class="hidden text-xs text-amber-700 mb-1">班別選定後會鎖定，不能自行更改。| Your class is locked after selection.</p>
           <select id="input-student-class" required class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:border-blue-500">
             <option value="">請選擇班別 | Select your class</option>
             <option value="f4-chinese-economics">中四中文經濟</option>
@@ -2402,11 +2401,8 @@
     // =========================================================================
     function openProfileModal() {
       document.getElementById("input-student-name").value = state.studentName;
-      const classSelect = document.getElementById("input-student-class");
-      classSelect.value = state.classId || "";
-      classSelect.disabled = !!state.classId;
-      const classHelp = document.getElementById("student-class-lock-note");
-      if (classHelp) classHelp.classList.toggle("hidden", !state.classId);
+      document.getElementById("input-student-class").value = state.classId || "";
+      document.getElementById("input-student-class").disabled = false;
       document.getElementById("profile-modal").classList.remove("hidden");
     }
 
@@ -2420,18 +2416,11 @@
         showToast("請先選擇班別。| Please select your class first.");
         return;
       }
-      if (state.classId && state.classId !== selectedClass) {
-        showToast("班別已鎖定，不能更改。| Your class is locked and cannot be changed.");
-        return;
-      }
       const sName = document.getElementById("input-student-name").value.trim() || "經濟學習者";
       const classChanged = state.classId !== selectedClass;
       state.studentName = sName.slice(0, 20);
       state.classId = selectedClass;
-      try { localStorage.setItem("econf4quiz_locked_class", selectedClass); } catch (err) { console.warn("Could not save locked class", err); }
-      document.getElementById("input-student-class").disabled = true;
-      const classHelp = document.getElementById("student-class-lock-note");
-      if (classHelp) classHelp.classList.remove("hidden");
+      document.getElementById("input-student-class").disabled = false;
       document.getElementById("display-student-name").textContent = `${state.studentName} · ${getClassLabel(state.classId)}`;
       if (classChanged && firebaseUser && firebaseUser.isAnonymous) subscribeToLeaderboard();
       closeProfileModal();
@@ -2453,10 +2442,6 @@
     // 11. INITIALIZE APPLICATION ON WINDOW LOAD
     // =========================================================================
     window.onload = function () {
-      try {
-        const savedClass = localStorage.getItem("econf4quiz_locked_class");
-        if (CLASS_OPTIONS.some(option => option.id === savedClass)) state.classId = savedClass;
-      } catch (err) { console.warn("Could not read locked class", err); }
       initializeFirebase();
       document.getElementById("display-student-name").textContent = `${state.studentName} · ${getClassLabel(state.classId)}`;
       updateGlobalScoreHeader();
