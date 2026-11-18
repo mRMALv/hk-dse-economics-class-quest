@@ -1100,41 +1100,50 @@
         id: "L4Q3",
         level: 3,
         type: "dnd",
-        typeLabel: "優缺點對比題 | Public vs Private Provision",
-        refTag: "參考例子：6.3 公有制與私有制提供公共服務對比 | Ref: Sec 6.3 Public vs Private Provision of Public Services",
+        typeLabel: "公有制與私有制完整比較 | Full Public vs Private Comparison",
+        refTag: "參考資料：6.3 公有制與私有制比較（課本 P.28）| Ref: Sec 6.3 Comparison between Public and Private Ownership (P.28)",
         points: 20,
-        title: "比較「公有制」與「私有制」提供公共服務的優缺點 | Public vs. Private Provision of Public Services",
-        prompt: `
-          <p>公共服務（例如醫療、房屋、交通）可由公營企業或私營企業提供。請將下列 6 項中英對照優點拖放到正確的擁有權制度中：</p>
-          <p class="text-slate-600 text-xs sm:text-sm">Public services (such as healthcare, housing, and transport) can be provided by public or private enterprises. Drag each bilingual advantage into the correct ownership system:</p>
-        `,
+        title: "從公平與效率角度，比較公有制與私有制的優缺點 | Compare the Advantages and Disadvantages of Public and Private Ownership",
+        prompt: \`
+          <p>根據課本 P.28 的比較表，請把以下 11 項中英對照陳述，分類到四個正確位置。注意：<strong>公有制以公平（Equity）角度考慮；私有制以效率（Efficiency）角度考慮</strong>，而每種制度均有優點和缺點。</p>
+          <p class="text-slate-600 text-xs sm:text-sm">Based on the comparison on textbook p.28, classify the 11 bilingual statements into the four correct categories. Note: <strong>Public ownership is considered from the perspective of equity, while private ownership is considered from the perspective of efficiency</strong>. Each system has both advantages and disadvantages.</p>
+        \`,
         buckets: [
-          { id: "public_prov", label: "公有制提供公共服務的優點 | Advantages of Public Provision" },
-          { id: "private_prov", label: "私有制提供公共服務的優點 | Advantages of Private Provision" }
+          { id: "public_adv", label: "公平 Equity｜公有制優點<br/>Public Ownership — Advantages" },
+          { id: "public_dis", label: "公平 Equity｜公有制缺點<br/>Public Ownership — Disadvantages" },
+          { id: "private_adv", label: "效率 Efficiency｜私有制優點<br/>Private Ownership — Advantages" },
+          { id: "private_dis", label: "效率 Efficiency｜私有制缺點<br/>Private Ownership — Disadvantages" }
         ],
         items: [
-          { id: "pp1", text: "較容易獲取公眾和政府的機密資訊以配合政策規劃 | Easier access to public and government information for policy coordination", target: "public_prov" },
-          { id: "pp2", text: "能夠以低廉的價格甚至免費提供服務，照顧低收入人士需要 | Can provide services at low prices or free of charge to help low-income groups", target: "public_prov" },
-          { id: "pp3", text: "擁有政府提供的穩定資金來源，較能承擔龐大或長期虧損的基建項目 | Stable funding from the government to undertake large or loss-making infrastructure", target: "public_prov" },
-          { id: "pp4", text: "由於以賺取利潤為目標，有較大誘因降低生產成本，運營效率較高 | Profit-driven incentive to cut production costs leads to higher operational efficiency", target: "private_prov" },
-          { id: "pp5", text: "決策的靈活性較高（毋須經過繁複的政府行政審批程序）| Higher decision-making flexibility without lengthy bureaucratic approval procedures", target: "private_prov" },
-          { id: "pp6", text: "面對市場競爭，有較大動力提高物品和服務的質素 | Market competition creates stronger motivation to improve the quality of goods and services", target: "private_prov" }
+          { id: "cmp1", text: "較容易獲取有關公眾的政府資訊，有助作出更好的決策 | Better access to government information about the general public for better decision-making", target: "public_adv" },
+          { id: "cmp2", text: "以較低價格，甚至免費提供物品和服務 | Provide goods and services at lower prices or even free of charge", target: "public_adv" },
+          { id: "cmp3", text: "在政府支持下，資金來源較穩定 | More stable sources of capital with the backup of the government", target: "public_adv" },
+          { id: "cmp4", text: "營運效率可能較低 | The operation may be less efficient", target: "public_dis" },
+          { id: "cmp5", text: "決策可能較缺乏靈活性 | Decision-making may be less flexible", target: "public_dis" },
+          { id: "cmp6", text: "政府承受較大的財政負擔；資源亦可能有其他用途（例如教育及公共衞生）| Higher financial burden on the government; resources may have alternative uses (e.g. education and public health)", target: "public_dis" },
+          { id: "cmp7", text: "營運效率較高 | The operation is more efficient", target: "private_adv" },
+          { id: "cmp8", text: "決策較有靈活性 | Decision-making is more flexible", target: "private_adv" },
+          { id: "cmp9", text: "有較大誘因改善物品和服務的質素，以賺取更多利潤 | Greater incentive to improve the quality of goods and services for greater profit", target: "private_adv" },
+          { id: "cmp10", text: "較難取得有關公眾的資訊作未來規劃 | Limited access to information about the general public for future planning", target: "private_dis" },
+          { id: "cmp11", text: "由於以賺取利潤為目標，物品和服務的價格可能較高 | Prices of goods and services may be higher as private enterprises aim at profit-making", target: "private_dis" }
         ],
-        explanation: `
+        explanation: \`
           <div class="space-y-2">
-            <p><strong>【中文解析】</strong></p>
+            <p><strong>【中文解析】公有制（公平 Equity）：</strong></p>
             <ul class="list-disc pl-5 space-y-1">
-              <li><strong>公有制的優點：</strong>較容易獲取公眾和政府的資訊、以低廉的價格或免費提供服務、擁有穩定的資金來源（政府支持）。</li>
-              <li><strong>私有制的優點：</strong>以賺取利潤為目標，運營效率較高、決策的靈活性較高、提高物品和服務質素的動力較大。</li>
+              <li><strong>優點：</strong>較容易取得政府有關公眾的資訊以作決策；能以較低價格甚至免費提供物品和服務；在政府支持下有較穩定的資金來源。</li>
+              <li><strong>缺點：</strong>營運效率可能較低；決策靈活性較低；政府須承擔較大的財政負擔，而資源亦可能有教育及公共衞生等其他用途。</li>
+            </ul>
+            <p><strong>【中文解析】私有制（效率 Efficiency）：</strong></p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>優點：</strong>營運效率較高；決策較靈活；為賺取更多利潤，企業有較大誘因改善物品和服務的質素。</li>
+              <li><strong>缺點：</strong>較難取得有關公眾的資訊作未來規劃；由於以賺取利潤為目標，物品和服務的價格可能較高。</li>
             </ul>
             <hr class="border-slate-200"/>
-            <p><strong>[English Explanation]</strong></p>
-            <ul class="list-disc pl-5 space-y-1 text-slate-700">
-              <li><strong>Advantages of Public Ownership:</strong> Easier access to public and government information, provision of services at low prices or free of charge, and stable funding sources.</li>
-              <li><strong>Advantages of Private Ownership:</strong> Higher operational efficiency driven by profit incentives, higher decision-making flexibility, and stronger motivation to improve service quality.</li>
-            </ul>
+            <p><strong>[English Explanation] Public Ownership (Equity):</strong> Advantages include better access to government information about the public, lower or free provision, and more stable government-backed capital. Disadvantages include potentially lower operational efficiency, less flexible decision-making, and a higher fiscal burden with resources having alternative uses such as education and public health.</p>
+            <p><strong>[English Explanation] Private Ownership (Efficiency):</strong> Advantages include higher operational efficiency, more flexible decision-making, and stronger incentives to improve quality for greater profit. Disadvantages include limited access to information about the general public for future planning and potentially higher prices due to the profit-making objective.</p>
           </div>
-        `
+        \`
       },
       {
         id: "L4Q4",
@@ -2316,6 +2325,65 @@
                 </ul>
               </div>
             </div>
+
+            <section class="space-y-3">
+              <div class="border-b border-slate-200 pb-2">
+                <h4 class="text-base sm:text-lg font-black text-slate-900">📊 公有制與私有制的比較 | Comparison between Public Ownership and Private Ownership</h4>
+                <p class="text-xs sm:text-sm text-slate-600 mt-1">必須掌握兩種制度在公平（Equity）及效率（Efficiency）方面的優點和缺點。| Learn the advantages and disadvantages of both systems in terms of equity and efficiency.</p>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full min-w-[760px] text-xs sm:text-sm text-left border-collapse border border-slate-200">
+                  <thead>
+                    <tr class="bg-emerald-100 text-slate-900">
+                      <th class="p-3 border border-slate-300 w-1/4">比較項目 | Ownership</th>
+                      <th class="p-3 border border-slate-300">優點 | Advantages</th>
+                      <th class="p-3 border border-slate-300">缺點 | Disadvantages</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="align-top">
+                      <th class="p-3 border border-slate-300 bg-slate-100">
+                        <div class="font-black text-rose-600 text-base">Equity 公平</div>
+                        <div class="mt-2">公有制<br/>Public ownership</div>
+                      </th>
+                      <td class="p-3 border border-slate-300">
+                        <ul class="list-disc pl-4 space-y-2">
+                          <li>較容易獲取有關公眾的政府資訊，有助作出更好的決策。<br/><span class="text-slate-500">Better access to government information about the general public for better decision-making.</span></li>
+                          <li>以較低價格，甚至免費提供物品和服務。<br/><span class="text-slate-500">Provide goods and services at lower prices or even free of charge.</span></li>
+                          <li>在政府支持下，資金來源較穩定。<br/><span class="text-slate-500">More stable sources of capital with the backup of the government.</span></li>
+                        </ul>
+                      </td>
+                      <td class="p-3 border border-slate-300">
+                        <ul class="list-disc pl-4 space-y-2">
+                          <li>營運效率可能較低。<br/><span class="text-slate-500">The operation may be less efficient.</span></li>
+                          <li>決策可能較缺乏靈活性。<br/><span class="text-slate-500">Decision-making may be less flexible.</span></li>
+                          <li>政府承受較大的財政負擔；資源亦可能有其他用途（例如教育及公共衞生）。<br/><span class="text-slate-500">Higher financial burden on the government; resources may have alternative uses (e.g. education and public health).</span></li>
+                        </ul>
+                      </td>
+                    </tr>
+                    <tr class="align-top">
+                      <th class="p-3 border border-slate-300 bg-slate-100">
+                        <div class="font-black text-rose-600 text-base">Efficiency 效率</div>
+                        <div class="mt-2">私有制<br/>Private ownership</div>
+                      </th>
+                      <td class="p-3 border border-slate-300">
+                        <ul class="list-disc pl-4 space-y-2">
+                          <li>營運效率較高。<br/><span class="text-slate-500">The operation is more efficient.</span></li>
+                          <li>決策較有靈活性。<br/><span class="text-slate-500">Decision-making is more flexible.</span></li>
+                          <li>有較大誘因改善物品和服務的質素，以賺取更多利潤。<br/><span class="text-slate-500">Greater incentive to improve the quality of goods and services for greater profit.</span></li>
+                        </ul>
+                      </td>
+                      <td class="p-3 border border-slate-300">
+                        <ul class="list-disc pl-4 space-y-2">
+                          <li>較難取得有關公眾的資訊作未來規劃。<br/><span class="text-slate-500">Limited access to information about the general public for future planning.</span></li>
+                          <li>由於以賺取利潤為目標，物品和服務的價格可能較高。<br/><span class="text-slate-500">Prices of goods and services may be higher as private enterprises aim at profit-making.</span></li>
+                        </ul>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
             <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs sm:text-sm space-y-1">
               <div class="font-extrabold text-amber-900">📖 參考案例（生活實例 6.2）：出售公共屋邨零售及停車場設施 | Selling Public Estate Facilities to Private Enterprise</div>
