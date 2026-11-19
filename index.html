@@ -505,12 +505,12 @@
           { id: "part", label: "合夥 | Partnership" }
         ],
         items: [
-          { id: "i1", text: "資金來源較有限（只靠個人儲蓄、向親友或銀行借款）| More limited sources of capital (relying only on personal savings, loans from relatives/friends or banks)", target: "sole" },
-          { id: "i2", text: "決策的靈活性較高（東主可自行作出決定，毋須徵求他人同意）| Higher flexibility in decision-making (owner can make decisions independently without seeking others' consent)", target: "sole" },
+          { id: "i1", text: "可動用的融資渠道較少，較難一次籌集大額資金 | Has fewer available financing channels, making it harder to raise a large amount of capital at once", target: "sole" },
+          { id: "i2", text: "日常經營決策程序較簡單，能較快作出決定 | Day-to-day business decisions involve a simpler process and can be made more quickly", target: "sole" },
           { id: "i3", text: "由東主獨享所有利潤及獨自承擔所有風險 | Owner enjoys all profits alone and bears all risks alone", target: "sole" },
-          { id: "i4", text: "資金來源較廣（可由多名合夥人提供資本，較易向銀行借款）| Wider sources of capital (capital contributed by multiple partners; easier to obtain bank loans)", target: "part" },
-          { id: "i5", text: "管理人員在決策時可以集思廣益，但決策靈活性較低 | Can pool ideas in decision-making, but lower flexibility in decision-making", target: "part" },
-          { id: "i6", text: "專門化程度較高（合夥人可根據各自的專長分工合作）| Higher degree of specialization (partners can divide labour according to their expertise)", target: "part" }
+          { id: "i4", text: "可匯集多位東主的資金，並有較多融資渠道 | Can pool capital from several owners and has access to more financing channels", target: "part" },
+          { id: "i5", text: "作出重要決定前需要協調多方意見，因此決策程序可能較需時 | Different views need to be coordinated before major decisions, so the decision-making process may take longer", target: "part" },
+          { id: "i6", text: "不同東主可按各自的技能分工，令工作安排更專門化 | Different owners can divide work according to their skills, allowing greater specialization", target: "part" }
         ],
         explanation: `
           <div class="space-y-2">
@@ -676,11 +676,11 @@
         ],
         items: [
           { id: "p1", text: "股東數目為 1 至 50 名 | Number of shareholders is 1 to 50", target: "private_co" },
-          { id: "p2", text: "轉讓股票須得到其他股東的同意，被收購風險較低 | Transfer of shares requires other shareholders' consent; lower risk of takeover", target: "private_co" },
-          { id: "p3", text: "毋須向公眾披露財務資料（保密程度較高）| Not required to disclose financial information to the public (higher confidentiality)", target: "private_co" },
+          { id: "p2", text: "股份轉讓受到限制，外來人士較難透過買入股份取得控制權 | Share transfers are restricted, making it harder for outsiders to gain control by buying shares", target: "private_co" },
+          { id: "p3", text: "財務資料無須向公眾公開 | Financial information does not have to be made available to the general public", target: "private_co" },
           { id: "p4", text: "股東數目為 1 名至無限 | Number of shareholders is 1 to infinity", target: "public_co" },
-          { id: "p5", text: "可以向公眾發行股票或債券集資，資金來源最廣 | Can issue shares or bonds to the public to raise capital; widest sources of capital", target: "public_co" },
-          { id: "p6", text: "股票可以自由轉讓，但被其他公司收購的風險較高 | Shares can be transferred freely, but faces a higher risk of takeover by other companies", target: "public_co" }
+          { id: "p5", text: "可向較廣泛的投資者籌集資金，融資渠道較多 | Can raise funds from a wider pool of investors through more financing channels", target: "public_co" },
+          { id: "p6", text: "股份較容易在市場上轉手，企業控制權亦可能隨股份買賣而改變 | Shares can be transferred more freely, and control of the company may change through share transactions", target: "public_co" }
         ],
         explanation: `
           <div class="space-y-2">
@@ -858,11 +858,11 @@
           { id: "rank5", label: "第 5 位（最後）| 5th Priority" }
         ],
         items: [
-          { id: "r1", text: "有抵押債權人（例如提供按揭的銀行）| Secured creditors (e.g. banks providing mortgage loans)", target: "rank1" },
-          { id: "r2", text: "清盤人（處理清盤程序的費用與酬金）| Liquidator (liquidation fees and expenses)", target: "rank2" },
-          { id: "r3", text: "政府和公司的僱員（欠稅及欠薪）| The government and the company's employees (unpaid taxes & wages)", target: "rank3" },
-          { id: "r4", text: "無抵押債權人（例如債券持有人）| Unsecured creditors (e.g. bondholders / debenture holders)", target: "rank4" },
-          { id: "r5", text: "股東（公司的東主）| Shareholders (owners of the company)", target: "rank5" }
+          { id: "r1", text: "有抵押債權人 | Secured creditors", target: "rank1" },
+          { id: "r2", text: "清盤人 | Liquidator", target: "rank2" },
+          { id: "r3", text: "政府和公司的僱員 | The government and the company's employees", target: "rank3" },
+          { id: "r4", text: "無抵押債權人 | Unsecured creditors", target: "rank4" },
+          { id: "r5", text: "股東 | Shareholders", target: "rank5" }
         ],
         explanation: `
           <div class="space-y-2">
@@ -1233,6 +1233,7 @@
       levelScores: [0, 0, 0, 0],
       answeredQuestions: {},
       dndPlacements: {},
+      dndItemOrders: {},
       selectedMcq: {},
       secondsRemaining: 900,
       timerInterval: null,
@@ -1545,7 +1546,20 @@
       } else if (q.type === "dnd") {
         if (!state.dndPlacements[q.id]) state.dndPlacements[q.id] = {};
         const placements = state.dndPlacements[q.id];
-        const unplacedItems = q.items.filter(item => !placements[item.id]);
+
+        // Shuffle once per question attempt; keep the order stable during interaction.
+        if (!state.dndItemOrders[q.id]) {
+          const shuffledItems = [...q.items];
+          for (let i = shuffledItems.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledItems[i], shuffledItems[j]] = [shuffledItems[j], shuffledItems[i]];
+          }
+          state.dndItemOrders[q.id] = shuffledItems.map(item => item.id);
+        }
+        const orderedItems = state.dndItemOrders[q.id]
+          .map(itemId => q.items.find(item => item.id === itemId))
+          .filter(Boolean);
+        const unplacedItems = orderedItems.filter(item => !placements[item.id]);
 
         const gridCols = q.buckets.length === 5
           ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-5"
@@ -1582,7 +1596,7 @@
             <!-- Target Drop Buckets -->
             <div class="grid ${gridCols} gap-3">
               ${q.buckets.map(bucket => {
-                const itemsInBucket = q.items.filter(item => placements[item.id] === bucket.id);
+                const itemsInBucket = orderedItems.filter(item => placements[item.id] === bucket.id);
                 return `
                   <div class="drop-zone rounded-2xl border-2 border-slate-300 bg-slate-50/70 p-3.5 flex flex-col min-h-[175px]"
                     ondragover="handleDragOver(event)"
