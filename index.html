@@ -338,6 +338,15 @@
         <!-- Rendered dynamically by JS -->
       </div>
 
+      <!-- Preserved student nickname roster -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+        <h3 class="text-lg font-extrabold text-slate-900 mb-2">👥 本班學生暱稱名單 | Class Nickname List</h3>
+        <p class="text-xs text-slate-500 mb-4">重設分數後仍會保留此名單。| This list remains after scores are reset.</p>
+        <div id="student-roster-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div class="text-sm text-slate-500">載入名單中…… | Loading roster…</div>
+        </div>
+      </div>
+
       <!-- Overall Combined Leaderboard -->
       <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
         <h3 class="text-lg font-extrabold text-slate-900 mb-4 flex items-center gap-2">
@@ -438,14 +447,14 @@
   <!-- Teacher Reset Leaderboard Confirmation Modal (No confirm() used) -->
   <div id="reset-lb-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-rose-200 space-y-4">
-      <h3 class="text-lg font-extrabold text-rose-800">⚠️ 確認清空排行榜？| Confirm Reset Leaderboards?</h3>
+      <h3 class="text-lg font-extrabold text-rose-800">⚠️ 重設本班成績？| Reset This Class's Scores?</h3>
       <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-        此操作只會清除「中四中文經濟 | Form 4 Economics」的排行榜成績紀錄。
-        <br/><span class="text-slate-500">This will clear the leaderboard records for Form 4 Economics only.</span>
+        將「<strong id="reset-lb-class-name"></strong>」所有學生的四關分數及總分歸零，<strong>保留暱稱及名單，不會刪除排行榜紀錄或 Firebase 帳戶</strong>。
+        <br/><span class="text-slate-500">Reset all scores to zero for this class on all connected devices. Nicknames and the student list will be kept; leaderboard records and Firebase accounts will not be deleted.</span>
       </p>
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeResetLeaderboardModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm font-bold">取消 | Cancel</button>
-        <button onclick="confirmResetLeaderboard()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold">確認清空 | Confirm Reset</button>
+        <button onclick="confirmResetLeaderboard()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold">重設分數 | Reset Scores</button>
       </div>
     </div>
   </div>
@@ -1239,7 +1248,10 @@
       timerInterval: null,
       completionModalShown: false,
       mindMapBranch: "overview",
-      leaderboardEntries: []
+      leaderboardEntries: [],
+      // Used to detect whether a teacher reset happened after this page was opened.
+      sessionStartedAt: Date.now(),
+      resetReloading: false
     };
 
     function initializeFirebase() {
@@ -1255,7 +1267,19 @@
             subscribeToLeaderboard();
           } else if (!auth.currentUser) {
             try { await auth.signInAnonymously(); }
-            catch (err) { console.error(err); showToast("Firebase 登入失敗，請稍後重試。| Firebase sign-in failed."); }
+            catch (err) {
+              console.error("Anonymous sign-in failed:", err);
+              const code = err && err.code ? err.code : "unknown";
+              let message = "登入暫時失敗，請稍後再試。| Sign-in failed. Please try again later.";
+              if (code === "auth/too-many-requests") {
+                message = "同一網絡短時間內建立了太多匿名帳戶，Firebase 暫時限制登入。請稍後再試，並通知教師。| Too many anonymous sign-ups from this network. Firebase has temporarily limited sign-in.";
+              } else if (code === "auth/network-request-failed") {
+                message = "網絡連線失敗，請檢查 Wi-Fi 或流動數據。| Network connection failed. Check your internet connection.";
+              } else if (code === "auth/operation-not-allowed") {
+                message = "Firebase 尚未啟用匿名登入，請通知教師檢查設定。| Anonymous sign-in is not enabled in Firebase.";
+              }
+              showToast(message + " (" + code + ")");
+            }
           }
         });
       } catch (err) {
@@ -1274,7 +1298,20 @@
       leaderboardUnsubscribe = db.collection("leaderboard")
         .where("classId", "==", state.classId)
         .onSnapshot(snapshot => {
-          state.leaderboardEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), name: doc.data().nickname }));
+          const freshEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), name: doc.data().nickname }));
+          const ownEntry = firebaseUser
+            ? freshEntries.find(entry => entry.id === `${state.classId}_${firebaseUser.uid}`)
+            : null;
+          const resetAtMs = ownEntry && ownEntry.resetAt && typeof ownEntry.resetAt.toMillis === "function"
+            ? ownEntry.resetAt.toMillis()
+            : 0;
+          if (resetAtMs > state.sessionStartedAt && !state.resetReloading) {
+            state.resetReloading = true;
+            showToast("教師已重設本班成績，正在重新開始遊戲。| The teacher reset this class; the game is restarting.");
+            setTimeout(() => window.location.reload(), 900);
+            return;
+          }
+          state.leaderboardEntries = freshEntries;
           if (state.activeTab === "leaderboard") renderLeaderboards();
         }, err => {
           console.error("Leaderboard subscription failed", err);
@@ -1315,6 +1352,15 @@
             ? existing.data().totalScore
             : -1;
 
+          const existingResetAt = existing.exists
+            && existing.data().resetAt
+            && typeof existing.data().resetAt.toMillis === "function"
+            ? existing.data().resetAt.toMillis()
+            : 0;
+          if (existingResetAt > state.sessionStartedAt) {
+            return { status: "reset-required" };
+          }
+
           if (existing.exists && totalScore <= previousScore) {
             return { status: "kept-existing", bestScore: previousScore };
           }
@@ -1344,6 +1390,10 @@
           showToast(`已保留個人最佳成績：${result.bestScore} 分。這次分數較低或相同，排行榜不會被取代。| Your best score of ${result.bestScore} was kept; this attempt did not replace it.`);
         } else if (result.status === "no-class") {
           showToast("請先選擇班別，再提交成績。| Please select a class before submitting.");
+        } else if (result.status === "reset-required" && !state.resetReloading) {
+          state.resetReloading = true;
+          showToast("教師已重設本班成績，請重新開始。| This class was reset. The game will restart.");
+          setTimeout(() => window.location.reload(), 900);
         }
       });
     }
@@ -1957,6 +2007,24 @@
         `;
       }).join("");
 
+      // Render the preserved roster independently from scored leaderboard positions.
+      const rosterContainer = document.getElementById("student-roster-list");
+      const sortedRoster = [...entries].sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || ""), "zh-Hant")
+      );
+      if (sortedRoster.length === 0) {
+        rosterContainer.innerHTML = `
+          <div class="text-sm text-slate-500">目前尚未有學生名單。| No students on the roster yet.</div>
+        `;
+      } else {
+        rosterContainer.innerHTML = sortedRoster.map((student, index) => `
+          <div class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <span class="text-sm font-semibold text-slate-800">${index + 1}. ${student.name || "經濟學習者"}</span>
+            <span class="text-xs text-slate-500">${getClassLabel(student.classId)}</span>
+          </div>
+        `).join("");
+      }
+
       // Render Overall Combined Leaderboard
       const sortedOverall = [...entries]
         .map(s => ({
@@ -2050,6 +2118,7 @@
       if (!firebaseUser || firebaseUser.uid !== TEACHER_UID || firebaseUser.isAnonymous) {
         showToast("只有教師可以清空排行榜。| Teacher access required."); return;
       }
+      document.getElementById("reset-lb-class-name").textContent = getClassLabel(state.classId);
       document.getElementById("reset-lb-modal").classList.remove("hidden");
     }
 
@@ -2059,21 +2128,28 @@
 
     async function confirmResetLeaderboard() {
       if (!firebaseUser || firebaseUser.uid !== TEACHER_UID || firebaseUser.isAnonymous) {
-        showToast("只有教師可以清空排行榜。| Teacher access required."); return;
+        showToast("只有教師可以重設排行榜。| Teacher access required."); return;
+      }
+      if (!state.classId) {
+        showToast("請先選擇要重設的班別。| Select a class first."); return;
       }
       try {
         const snapshot = await db.collection("leaderboard").where("classId", "==", state.classId).get();
         const docs = snapshot.docs;
         for (let i = 0; i < docs.length; i += 400) {
           const batch = db.batch();
-          docs.slice(i, i + 400).forEach(doc => batch.delete(doc.ref));
+          docs.slice(i, i + 400).forEach(doc => batch.update(doc.ref, {
+            totalScore: 0,
+            levelScores: [0, 0, 0, 0],
+            resetAt: firebase.firestore.FieldValue.serverTimestamp()
+          }));
           await batch.commit();
         }
         closeResetLeaderboardModal();
-        showToast("本班排行榜已清空。| This class leaderboard has been reset.");
+        showToast("本班所有裝置的成績已歸零，學生暱稱名單已保留。| Class scores reset on all devices; student nicknames were kept.");
       } catch (err) {
         console.error(err);
-        showToast("清空失敗，請檢查教師權限及 Firestore Rules。| Reset failed.");
+        showToast("重設失敗，請檢查教師權限及 Firestore Rules。| Reset failed.");
       }
     }
 
